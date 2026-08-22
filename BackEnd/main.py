@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -13,10 +14,17 @@ load_dotenv()
 # 2. تجهيز تطبيق FastAPI
 app = FastAPI(title="منصة الذكاء الاصطناعي")
 
-# 3. إعدادات الـ CORS (تم السماح بالكل مؤقتاً لسهولة التجربة من أي ملف HTML محلي)
+# 3. إعدادات الـ CORS
+# قمنا بإضافة رابط Vercel الخاص بك صراحةً لتجنب خطأ التعارض مع allow_credentials
+origins = [
+    "https://ai-assistant-git-main-ai-assistant16.vercel.app", # رابط الواجهة الأمامية (Vercel)
+    "http://localhost:3000", # للاختبار المحلي (React/Next)
+    "http://127.0.0.1:5500", # للاختبار المحلي (Live Server)
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,4 +41,9 @@ async def main():
 
 # 5. تشغيل السيرفر
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    # الحصول على المنفذ (Port) من منصة Railway أو استخدام 8000 عند التشغيل المحلي
+    port = int(os.environ.get("PORT", 8000))
+    
+    # تغيير الـ Host إلى 0.0.0.0 لكي يعمل على Railway بنجاح
+    # تم إزالة reload=True لأنها غير مفضلة وتسبب مشاكل في بيئة الإنتاج (Production)
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
