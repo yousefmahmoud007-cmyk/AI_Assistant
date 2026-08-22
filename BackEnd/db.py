@@ -10,8 +10,16 @@ from sqlalchemy.sql import func
 
 # 1. تحميل المتغيرات وإعداد رابط الاتصال
 load_dotenv()
-password = os.getenv("DB_PASSWORD")
-DATABASE_URL = f"postgresql+asyncpg://postgres:{password}@localhost:5432/postgres"
+
+# الجديد (الآمن والذي يقرأ من Railway تلقائياً)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# لو الرابط يبدأ بـ postgres:// (وهو ما توفره Railway أحياناً)، يجب تعديله ليناسب asyncpg
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 
 # 2. إنشاء المحرك ومدير الجلسات (للربط فقط)
 engine = create_async_engine(DATABASE_URL, echo=False)
