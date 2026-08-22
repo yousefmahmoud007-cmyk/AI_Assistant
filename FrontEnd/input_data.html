@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INPUT DATA - AI Platform</title>
+    
+    <!-- استدعاء Bootstrap 5 لدعم الـ Grid System والـ RTL -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <!-- استدعاء ملف الـ CSS الخارجي -->
+    <link rel="stylesheet" href="style_input_data.css">
+    
+    <style>
+        /* ستايل إضافي بسيط لجعل الحقول تبدو كنص عادي في وضع العرض */
+        .form-control:disabled, .form-control[readonly] {
+            background-color: transparent;
+            border: 1px dashed #ccc;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="text-center mt-4 text-primary fw-bold">AI ASSISTANT - لوحة الإدارة</h1>
+    
+    <div class="container my-5">
+        
+        <!-- ========================================== -->
+        <!-- شريط أدوات الصفحة (تعديل / حفظ) -->
+        <!-- ========================================== -->
+        <div class="d-flex justify-content-end mb-4 gap-2 border-bottom pb-3">
+            <button class="btn btn-warning fw-bold px-4 fs-5 shadow-sm" id="editBtn">
+                ✏️ تعديل البيانات
+            </button>
+            <button class="btn btn-success fw-bold px-4 fs-5 shadow-sm d-none" id="saveBtn">
+                💾  حفظ التعديلات بشكل مؤقت
+            </button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- الجزء الأول: إعدادات الموديل (من الصورة المرفقة) -->
+        <!-- ========================================== -->
+        <div class="model-settings-box mb-5 p-4 shadow-sm bg-white rounded border">
+            <h4 class="text-secondary mb-4 border-bottom pb-2">إعدادات الموديل الذكي (AI Personality)</h4>
+            
+            <div class="row align-items-start">
+                <!-- البيانات النصية (اليمين) -->
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">اسم الموديل</label>
+                        <input type="text" id="modelName" class="form-control editable-field" placeholder="اكتب اسم الموديل هنا..." disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">شخصية الموديل</label>
+                        <textarea id="modelPersonality" class="form-control editable-field" rows="4" placeholder="اكتب وصفاً لشخصية وطريقة تحدث الموديل..." disabled></textarea>
+                    </div>
+                </div>
+
+                <!-- رفع الصورة (اليسار) -->
+                <div class="col-md-4 text-center">
+                    <label class="form-label fw-bold text-dark d-block">صورة الموديل</label>
+                    
+                    <!-- مربع عرض الصورة -->
+                    <div class="image-preview-container mx-auto border rounded d-flex justify-content-center align-items-center" 
+                         style="width: 150px; height: 150px; background-color: #f8f9fa; cursor: pointer; overflow: hidden; position: relative;" 
+                         id="imageUploadTrigger">
+                        
+                        <span class="text-muted fs-1" id="cameraIcon">📸</span>
+                        <img id="modelImagePreview" src="" alt="صورة الموديل" style="display: none; width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    
+                    <input type="file" id="modelImageInput" class="d-none editable-field" accept="image/*" disabled>
+                    
+                    <!-- ملاحظة للمستخدم كما طلبت في الرسمة -->
+                    <small class="text-danger fw-bold d-block mt-3 px-2">
+                        💡 ملاحظة هامة: هذه الصورة ستُعرض للطلاب، يُرجى اختيار صورة احترافية تمثل شخصية الموديل.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- الجزء الثاني: المادة العلمية (باقي الصفحة) -->
+        <!-- ========================================== -->
+        <div class="subject-box mb-4 p-4 shadow-sm bg-white rounded border">
+            <h4 class="text-secondary mb-4 border-bottom pb-2">المنهج والمادة العلمية</h4>
+            <label class="form-label fw-bold fs-5 text-primary">المادة العلمية</label>
+            <input type="text" id="subjectName" class="form-control form-control-lg editable-field" placeholder="مثال: فيزياء 3 ثانوي..." disabled>
+        </div>
+
+        <!-- الحاوية اللي هيترمي فيها الوحدات (الأبواب) بواسطة الجافاسكربت -->
+        <div id="unitsContainer"></div>
+
+        <!-- زر إضافة باب/وحدة (مخفي افتراضياً في وضع العرض) -->
+        <button class="btn btn-dark w-100 mt-4 py-3 fs-5 fw-bold d-none action-btn" id="addUnitBtn">
+            + إضافة باب / وحدة جديدة
+        </button>
+
+        <!-- زر استخراج الـ JSON النهائي -->
+        <button class="btn btn-outline-primary w-100 mt-5 py-2 fw-bold fs-5" id="exportJsonBtn">
+            📤 ارسال
+        </button>
+
+    </div>
+
+    <!-- استدعاء ملف الـ JavaScript الخارجي -->
+    <script src="JS_input_data.js"></script>
+</body>
+</html>

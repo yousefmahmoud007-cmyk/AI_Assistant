@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المساعد الذكي</title>
+    
+    <!-- مكتبة Marked لتحويل النصوص العادية والتنسيقات فقط -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    
+    <!-- ربط ملف التنسيقات CSS -->
+    <link rel="stylesheet" href="style_assistant.css">
+</head>
+<body>
+
+<div class="chat-container">
+    
+    <!-- القائمة الجانبية (Sidebar) -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3>سجل المحادثات</h3>
+            <button class="close-btn" id="closeSidebar" title="إغلاق">×</button>
+            <button id="newChatBtn" class="btn btn-primary w-100 mb-3 text-white" style="background-color: #007bff; border-radius: 8px; padding: 10px; border: none; cursor: pointer; font-weight: bold;">
+                + محادثة جديدة
+            </button>
+        </div>
+        <div class="sidebar-content" id="chatHistorySidebar">
+            <p style="text-align:center; color:gray; font-size: 14px; margin-top: 20px;">جاري تحميل المحادثات...</p>
+        </div>
+    </div>
+
+    <!-- الهيدر (Header) -->
+    <header class="chat-header">
+        <button class="menu-btn" id="openSidebar" title="القائمة">☰</button>
+        <div class="logo-placeholder">
+            <img id="headerModelImage" src="logo.png" class="header-model-img" alt="صورة الموديل" title="المعلم الذكي">
+        </div>
+    </header>
+
+    <!-- مساحة الشات (Chat History) -->
+    <div class="chat-history" id="chatHistory">
+        <div class="message-ai">ابو عصام معاك في سؤال.<br> سؤال مطروش بقى ولا في السهل منه؟</div>
+    </div>
+
+    <!-- الحاوية السفلية للإدخال (Input Area) -->
+    <div class="prompt-area">
+        <div class="image-preview-container" id="imagePreviewContainer" style="display: none;">
+            <img id="imagePreview" src="" alt="معاينة">
+            <button class="remove-image-btn" id="removeImageBtn" title="حذف الصورة">×</button>
+        </div>
+        <div class="prompt-field">
+            <button class="upload-btn" id="uploadTriggerBtn" title="رفع صورة">+</button>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;" />
+            <input type="text" class="chat-input" id="chatInput" placeholder="اكتب سؤالك هنا..." autocomplete="off" />
+            <button class="send-btn" id="sendBtn" title="إرسال">➤</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- ربط ملف الجافاسكريبت الخارجي -->
+<script src="JS_assistant.js"></script>
+
+</body>
+</html>
