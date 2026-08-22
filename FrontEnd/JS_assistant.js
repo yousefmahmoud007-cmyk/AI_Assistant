@@ -68,7 +68,7 @@ async function sendToBackend(messageText, imageBase64) {
     // chatHistory.scrollTop = chatHistory.scrollHeight; 
 
     try {
-        const response = await fetch("http://127.0.0.1:8000/ai/ask-ai/", {
+        const response = await fetch("https://aiassistant-production-88d9.up.railway.app/ai/ask-ai/", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -159,7 +159,7 @@ async function loadOldChat(lessonId) {
     try {
         activeLessonId = lessonId;
         chatHistory.innerHTML = '<p style="text-align:center; color:gray; margin-top: 20px;" id="loadingOldChat">جاري تحميل المحادثة...</p>';
-        const response = await fetch(`http://127.0.0.1:8000/ai/history/chat/${CURRENT_STUDENT_ID}/${lessonId}`);
+        const response = await fetch(`https://aiassistant-production-88d9.up.railway.app/ai/history/chat/${CURRENT_STUDENT_ID}/${lessonId}`);
         document.getElementById('loadingOldChat').remove();
         
         if (response.ok) {
@@ -180,7 +180,7 @@ async function loadOldChat(lessonId) {
 
 async function loadAIPersonality() {
     try {
-        const response = await fetch("http://127.0.0.1:8000/ai/personality/");
+        const response = await fetch("https://aiassistant-production-88d9.up.railway.app/ai/personality/");
         if (response.ok) {
             const data = await response.json();
             if (data.image_base64) headerModelImage.src = data.image_base64;
@@ -193,7 +193,7 @@ async function loadAIPersonality() {
 
 async function loadSidebarHistory() {
     try {
-        const response = await fetch(`http://127.0.0.1:8000/ai/history/sidebar/${CURRENT_STUDENT_ID}`);
+        const response = await fetch(`https://aiassistant-production-88d9.up.railway.app/ai/history/sidebar/${CURRENT_STUDENT_ID}`);
         if (response.ok) {
             const data = await response.json();
             const sidebarContainer = document.getElementById('chatHistorySidebar');

@@ -6,7 +6,7 @@ let lessonCounters = {};
 let partCounters = {};
 let isEditMode = false;
 let currentModelImageBase64 = null;
-let currentKnowledgeBankId = null; 
+let currentKnowledgeBankId = null;
 
 // ==========================================
 // 2. جلب البيانات عند تحميل الصفحة
@@ -14,15 +14,15 @@ let currentKnowledgeBankId = null;
 window.addEventListener('DOMContentLoaded', async () => {
     // جلب بيانات الشخصية 
     try {
-        const aiResponse = await fetch("http://127.0.0.1:8000/ai/personality/");
+        const aiResponse = await fetch("https://aiassistant-production-88d9.up.railway.app/ai/personality/");
         if (aiResponse.ok) {
             const aiData = await aiResponse.json();
             const modelNameEl = document.getElementById('modelName');
             const modelPersonalityEl = document.getElementById('modelPersonality');
-            
+
             if (modelNameEl) modelNameEl.value = aiData.name || "";
             if (modelPersonalityEl) modelPersonalityEl.value = aiData.description || "";
-            
+
             if (aiData.image_base64) {
                 currentModelImageBase64 = aiData.image_base64;
                 const imgPreview = document.getElementById('modelImagePreview');
@@ -40,17 +40,17 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // جلب بيانات المنهج 
     try {
-        const adminResponse = await fetch("http://127.0.0.1:8000/admin/knowledge-bank/");
+        const adminResponse = await fetch("https://aiassistant-production-88d9.up.railway.app/admin/knowledge-bank/");
         if (adminResponse.ok) {
             const adminData = await adminResponse.json();
-            
+
             if (adminData.message === "لا توجد بيانات محفوظة بعد") {
                 togglePageMode(false);
                 return;
             }
-            
+
             if (adminData.id) currentKnowledgeBankId = adminData.id;
-            
+
             const subjectNameEl = document.getElementById('subjectName');
             if (subjectNameEl && adminData.knowledge_bank_title) {
                 subjectNameEl.value = adminData.knowledge_bank_title;
@@ -67,7 +67,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                     adminData.units.forEach((unitData) => {
                         unitCount++;
                         lessonCounters[unitCount] = 0;
-                        
+
                         // زرع الـ ID في الوحدة
                         const unitHTML = `
                             <div class="unit-box shadow-sm p-3 mb-4 bg-white rounded" id="unit_${unitCount}" data-id="${unitData.id || ''}">
@@ -90,14 +90,14 @@ window.addEventListener('DOMContentLoaded', async () => {
                             </div>
                         `;
                         unitsContainer.insertAdjacentHTML('beforeend', unitHTML);
-                        
+
                         if (unitData.lessons && unitData.lessons.length > 0) {
                             unitData.lessons.forEach((lessonData) => {
                                 lessonCounters[unitCount]++;
                                 const lessonId = lessonCounters[unitCount];
                                 const uniqueLessonId = `${unitCount}_${lessonId}`;
                                 partCounters[uniqueLessonId] = 0;
-                                
+
                                 // زرع الـ ID في الدرس
                                 const lessonHTML = `
                                     <div class="lesson-box shadow-sm p-3 mb-3 bg-light rounded border" id="lesson_${uniqueLessonId}" data-id="${lessonData.id || ''}">
@@ -120,13 +120,13 @@ window.addEventListener('DOMContentLoaded', async () => {
                                     </div>
                                 `;
                                 document.getElementById(`lessonsContainer_${unitCount}`).insertAdjacentHTML('beforeend', lessonHTML);
-                                
+
                                 if (lessonData.parts && lessonData.parts.length > 0) {
                                     lessonData.parts.forEach((partData) => {
                                         partCounters[uniqueLessonId]++;
                                         const partId = partCounters[uniqueLessonId];
                                         const partElementId = `part_${uniqueLessonId}_${partId}`;
-                                        
+
                                         // زرع الـ ID في الجزء
                                         const partHTML = `
                                             <div class="part-box p-3 mb-2 bg-white rounded border border-secondary" id="${partElementId}" data-id="${partData.id || ''}">
@@ -426,7 +426,7 @@ if(document.getElementById('exportJsonBtn')) {
         btn.disabled = true;
         
         try {
-            const response = await fetch("http://127.0.0.1:8000/admin/bulk-upload/", {
+            const response = await fetch("https://aiassistant-production-88d9.up.railway.app/admin/bulk-upload/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(finalData)
