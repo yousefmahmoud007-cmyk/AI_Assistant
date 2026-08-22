@@ -9,7 +9,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from typing import Optional
 from sqlalchemy import distinct
-
+from fastapi import HTTPException, status # تأكد من استيراد HTTPException في الأعلى
 # حل مشكلة المسارات
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
@@ -33,15 +33,24 @@ class UserRequest(BaseModel):
 
 @ai_router.get("/personality/")
 async def get_personality(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Personality))
-    personality = result.scalars().first()
-    if personality:
-        return {
-            "name": personality.name, 
-            "description": personality.description, # ضفنا السطر ده
-            "image_base64": personality.image_base64
-        }
-    return {"name": "المعلم الذكي", "description": "", "image_base64": None}
+    try:
+        result = await session.execute(select(Personality))
+        personality = result.scalars().first()
+        if personality:
+            return {
+                "name": personality.name,
+                "description": personality.description,
+                "image_base64": personality.image_base64
+            }
+        return {"name": "المعلم الذكي", "description": "", "image_base64": None}
+    
+    except Exception as e:
+        print(f"Error:{str(e)}")
+        # استخدام HTTPException بدلاً من إرجاع Tuple لكي لا ينهار السيرفر
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Server Error: {str(e)}"
+        )
 
 @ai_router.get("/history/sidebar/{student_id}")
 async def get_sidebar_history(student_id: int, session: AsyncSession = Depends(get_session)):
