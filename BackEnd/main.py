@@ -16,10 +16,12 @@ app = FastAPI(title="منصة الذكاء الاصطناعي")
 
 # 3. إعدادات الـ CORS
 # قمنا بإضافة رابط Vercel الخاص بك صراحةً لتجنب خطأ التعارض مع allow_credentials
+# 3. إعدادات الـ CORS
 origins = [
-    "https://ai-assistant-git-main-ai-assistant16.vercel.app", # رابط الواجهة الأمامية (Vercel)
-    "http://localhost:3000", # للاختبار المحلي (React/Next)
-    "http://127.0.0.1:5500", # للاختبار المحلي (Live Server)
+    "https://ai-assistant-iota-eight.vercel.app", # الرابط الجديد (مهم جداً!)
+    "https://ai-assistant-git-main-ai-assistant16.vercel.app", # الرابط القديم 
+    "http://localhost:3000", 
+    "http://127.0.0.1:5500", 
 ]
 
 app.add_middleware(
@@ -29,7 +31,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # 4. دمج المسارات (Routers) في التطبيق الأساسي
 app.include_router(admin_router)
 app.include_router(ai_router)
