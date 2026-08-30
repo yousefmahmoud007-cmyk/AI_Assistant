@@ -149,8 +149,9 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         # ==========================================
         # تم استبدال الموديلات القديمة بأخرى رسمية ومدعومة لسرعة الاستجابة وتفادي أخطاء Quota
         models_to_try = [
-            'gemini-1.5-flash',
-            'gemini-2.5-flash'
+            'gemini-3.7-flash',
+            'gemini-3.6-flash',
+            'gemini-3.5-flash',
         ]
         
         response_text = None
