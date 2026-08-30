@@ -9,7 +9,6 @@ from sqlalchemy import Column, Integer, String, Text, ForeignKey, TIMESTAMP
 from sqlalchemy.sql import func
 
 # 1. تحميل المتغيرات وإعداد رابط الاتصال
-# 1. تحميل المتغيرات وإعداد رابط الاتصال
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -21,19 +20,20 @@ if DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
     # --- الحل السحري الشامل لجميع إضافات Neon ---
-    # بنقص الرابط عند علامة الاستفهام عشان نرمي أي زيادات بتلخبط المكتبة
     DATABASE_URL = DATABASE_URL.split("?")[0]
 
-# 2. إنشاء المحرك ومدير الجلسات (مع تفعيل SSL بالطريقة الصحيحة لـ asyncpg)
+# 2. إنشاء المحرك ومدير الجلسات (مع إعدادات استقرار الاتصال)
 engine = create_async_engine(
     DATABASE_URL, 
     echo=False, 
-    connect_args={"ssl": True} # هنا السر!
+    connect_args={"ssl": True},
+    pool_pre_ping=True,        # يختبر الاتصال قبل استخدامه لمنع خطأ (connection closed)
+    pool_recycle=300,          # يجدد الاتصال كل 5 دقائق
+    pool_size=5,
+    max_overflow=10
 )
 
 async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
 
 # 3. الفئة الأساسية
 class Base(DeclarativeBase):
@@ -42,12 +42,10 @@ class Base(DeclarativeBase):
 # =========================================================
 # 4. النماذج (Models)
 # =========================================================
-
 class KnowledgeBank(Base):
     __tablename__ = "knowledge_banks"
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
-    
     units = relationship("Unit", back_populates="knowledge_bank", cascade="all, delete-orphan")
     personalities = relationship("Personality", back_populates="knowledge_bank", cascade="all, delete-orphan")
 
@@ -56,7 +54,6 @@ class Unit(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
     knowledge_bank_id = Column(Integer, ForeignKey("knowledge_banks.id"))
-    
     knowledge_bank = relationship("KnowledgeBank", back_populates="units")
     lessons = relationship("Lesson", back_populates="unit", cascade="all, delete-orphan")
 
@@ -65,7 +62,6 @@ class Lesson(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
     unit_id = Column(Integer, ForeignKey("units.id"))
-    
     unit = relationship("Unit", back_populates="lessons")
     lesson_parts = relationship("LessonPart", back_populates="lesson", cascade="all, delete-orphan")
 
@@ -77,7 +73,6 @@ class LessonPart(Base):
     question = Column(Text, nullable=True)
     example = Column(Text, nullable=True)
     lesson_id = Column(Integer, ForeignKey("lessons.id"))
-    
     lesson = relationship("Lesson", back_populates="lesson_parts")
 
 class Personality(Base):
@@ -85,24 +80,22 @@ class Personality(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
-    image_base64 = Column(Text, nullable=True) 
+    image_base64 = Column(Text, nullable=True)
     knowledge_bank_id = Column(Integer, ForeignKey("knowledge_banks.id"))
-    
     knowledge_bank = relationship("KnowledgeBank", back_populates="personalities")
 
 class Student(Base):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(255), nullable=False) 
-    password = Column(String(255), nullable=False) 
+    username = Column(String(255), nullable=False)
+    password = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
     knowledge_bank_id = Column(Integer, ForeignKey("knowledge_banks.id"))
-    
-    knowledge_bank = relationship("KnowledgeBank") 
+    knowledge_bank = relationship("KnowledgeBank")
     student_history = relationship("StudentHistory", back_populates="student")
 
 class StudentHistory(Base):
-    __tablename__ = "student_history" 
+    __tablename__ = "student_history"
     id = Column(Integer, primary_key=True, autoincrement=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=True)
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=True)

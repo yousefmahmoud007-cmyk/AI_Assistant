@@ -1,25 +1,23 @@
 import os
 import sys
 import base64
+import asyncio # تم الإضافة لدعم التوقيت
 import google.generativeai as genai
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
 from typing import Optional
-from sqlalchemy import distinct
-from fastapi import HTTPException, status # تأكد من استيراد HTTPException في الأعلى
+
 # حل مشكلة المسارات
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
-from db import get_session, Personality, Lesson, LessonPart, Unit, KnowledgeBank, StudentHistory
+from db import get_session, Personality, Lesson, LessonPart, StudentHistory
 from dotenv import load_dotenv
 
 load_dotenv()
-
 ai_router = APIRouter(prefix="/ai", tags=["AI Integration"])
 
 # إعداد المكتبة المستقرة
@@ -43,10 +41,8 @@ async def get_personality(session: AsyncSession = Depends(get_session)):
                 "image_base64": personality.image_base64
             }
         return {"name": "المعلم الذكي", "description": "", "image_base64": None}
-    
     except Exception as e:
         print(f"Error:{str(e)}")
-        # استخدام HTTPException بدلاً من إرجاع Tuple لكي لا ينهار السيرفر
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal Server Error: {str(e)}"
@@ -55,7 +51,6 @@ async def get_personality(session: AsyncSession = Depends(get_session)):
 @ai_router.get("/history/sidebar/{student_id}")
 async def get_sidebar_history(student_id: int, session: AsyncSession = Depends(get_session)):
     try:
-        # بنجيب الدروس اللي الطالب ده بس اتكلم فيها
         stmt = select(Lesson).join(StudentHistory).where(StudentHistory.student_id == student_id).distinct()
         result = await session.execute(stmt)
         lessons = result.scalars().all()
@@ -72,7 +67,6 @@ async def get_sidebar_history(student_id: int, session: AsyncSession = Depends(g
 @ai_router.get("/history/chat/{student_id}/{lesson_id}")
 async def get_chat_history(student_id: int, lesson_id: int, session: AsyncSession = Depends(get_session)):
     try:
-        # فلترة بالدرس وبالطالب والترتيب بالـ ID عشان تظهر مظبوطة
         stmt = select(StudentHistory).where(
             StudentHistory.lesson_id == lesson_id,
             StudentHistory.student_id == student_id
@@ -89,7 +83,6 @@ async def get_chat_history(student_id: int, lesson_id: int, session: AsyncSessio
         return {"messages": chat_data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @ai_router.post("/ask-ai/")
 async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_session)):
@@ -113,9 +106,6 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             "مثال صحيح للتكامل: تكامل (3س) دس = (3 على 2) س^2 + ث "
             "مثال صحيح للدوال: نها (جا س على س) لما س تؤول لصفر = 1 "
         )
-
-
-
         
         admin_instruction = ""
         result_personality = await session.execute(select(Personality))
@@ -147,7 +137,7 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         # ==========================================
         full_prompt = f"{context}\n\nسؤال الطالب: {request.prompt}"
         contents = [full_prompt]
-        
+
         if request.image:
             image_data_str = request.image.split(",")[1] if "," in request.image else request.image
             image_bytes = base64.b64decode(image_data_str)
@@ -155,17 +145,15 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             contents.append({"mime_type": mime_type, "data": image_bytes})
 
         # ==========================================
-        # 4. الـ Model Fallbacks (التنفيذ بشكل Async)
+        # 4. الـ Model Fallbacks (التنفيذ بشكل Async مع توقيت)
         # ==========================================
+        # تم استبدال الموديلات القديمة بأخرى رسمية ومدعومة لسرعة الاستجابة وتفادي أخطاء Quota
         models_to_try = [
-            'gemini-3.7-flash', 
-            'gemini-3.6-flash', 
-            'gemini-3.5-flash',
-            'gemini-3.5-flash-lite'
+            'gemini-1.5-flash',
+            'gemini-2.5-flash'
         ]
         
         response_text = None
-        
         for model_name in models_to_try:
             try:
                 custom_model = genai.GenerativeModel(
@@ -173,16 +161,21 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
                     system_instruction=final_system_instruction
                 )
                 
-                # استخدام generate_content_async لدعم الـ Asynchronous
-                response = await custom_model.generate_content_async(contents)
+                # استخدام wait_for لمنع السيرفر من التعليق للأبد (40 ثانية كحد أقصى لكل موديل)
+                response = await asyncio.wait_for(
+                    custom_model.generate_content_async(contents),
+                    timeout=40.0
+                )
                 response_text = response.text
-                break  # لو نجح وجاب الرد، بنخرج من الـ Loop
+                break
                 
+            except asyncio.TimeoutError:
+                print(f"الموديل {model_name} أخذ وقت طويل (Timeout)، نجرب التالي...")
+                continue
             except Exception as e:
                 print(f"فشل الموديل {model_name} بسبب: {e}")
-                continue  # لو فشل، كمل وجرب الموديل اللي بعده
-                
-        # لو الـ Loop خلصت وكل الموديلات فشلت
+                continue
+
         if not response_text:
             return {"response": "معلش يا بطل فيه ضغط على السيستم حالياً، ابعت سؤالك تاني كمان شوية"}
 
@@ -205,13 +198,11 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             message=response_text
         )
         session.add(ai_msg)
-        await session.commit()
         
+        await session.commit()
         return {"response": response_text}
 
     except Exception as e:
-        # لو حصل خطأ بعيداً عن الـ API (مثلاً خطأ في الداتا بيز)
         await session.rollback()
         print(f"Database/Server Error: {e}")
-        #return {"response": "معلش يا بطل حصل خطأ غير متوقع، حاول تاني"}
-        return {"response": f"Error details: {str(e)}"}
+        return {"response": f"حدث خطأ غير متوقع: {str(e)}"}
