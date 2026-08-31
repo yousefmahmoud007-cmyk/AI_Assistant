@@ -18,6 +18,7 @@ app = FastAPI(title="منصة الذكاء الاصطناعي")
 # قمنا بإضافة رابط Vercel الخاص بك صراحةً لتجنب خطأ التعارض مع allow_credentials
 # 3. إعدادات الـ CORS
 origins = [
+    "https://ai-assistant-iota-eight.vercel.app/management/login.html",
     "https://ai-assistant-iota-eight.vercel.app", # الرابط الجديد (مهم جداً!)
     "https://ai-assistant-git-main-ai-assistant16.vercel.app", # الرابط القديم 
     "http://localhost:3000", 

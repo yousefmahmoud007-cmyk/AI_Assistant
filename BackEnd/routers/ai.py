@@ -31,11 +31,14 @@ class UserRequest(BaseModel):
     image: Optional[str] = None
 
 
-@ai_router.get("/personality/")
-async def get_personality(session: AsyncSession = Depends(get_session)):
+@ai_router.get("/personality/{kb_id}")
+async def get_personality(kb_id: int, session: AsyncSession = Depends(get_session)):
     try:
-        result = await session.execute(select(Personality))
+        # البحث عن شخصية المدرس صاحب هذا الـ ID فقط
+        stmt = select(Personality).where(Personality.knowledge_bank_id == kb_id)
+        result = await session.execute(stmt)
         personality = result.scalars().first()
+        
         if personality:
             return {
                 "name": personality.name,
@@ -49,7 +52,6 @@ async def get_personality(session: AsyncSession = Depends(get_session)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal Server Error: {str(e)}"
         )
-
 
 @ai_router.get("/history/sidebar/{student_id}")
 async def get_sidebar_history(student_id: str, session: AsyncSession = Depends(get_session)):  # تم تعديل student_id إلى str
@@ -92,7 +94,7 @@ async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSessio
 @ai_router.post("/ask-ai/")
 async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_session)):
     try:
-        # ==========================================
+                # ==========================================
         # 1. إعداد التعليمات (النظام + الآدمن)
         # ==========================================
         base_instruction = (
@@ -113,12 +115,22 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         )
         
         admin_instruction = ""
-        result_personality = await session.execute(select(Personality))
-        personality = result_personality.scalars().first()
-        if personality:
-            name_part = f"اسمك هو '{personality.name}'." if personality.name else ""
-            desc_part = personality.description if personality.description else ""
-            admin_instruction = f"{name_part} {desc_part}"
+        
+        # معرفة الطالب تبع أي مدرس (بنك معرفة)
+        stmt_student = select(Student).where(Student.student_id == request.student_id)
+        result_student = await session.execute(stmt_student)
+        student = result_student.scalars().first()
+
+        if student and student.knowledge_bank_id:
+            # جلب شخصية المدرس الخاص بهذا الطالب
+            stmt_pers = select(Personality).where(Personality.knowledge_bank_id == student.knowledge_bank_id)
+            result_pers = await session.execute(stmt_pers)
+            personality = result_pers.scalars().first()
+            
+            if personality:
+                name_part = f"اسمك هو '{personality.name}'." if personality.name else ""
+                desc_part = personality.description if personality.description else ""
+                admin_instruction = f"{name_part} {desc_part}"
             
         final_system_instruction = f"{base_instruction}\n{admin_instruction}"
 

@@ -44,11 +44,13 @@ class Base(DeclarativeBase):
 # =========================================================
 class KnowledgeBank(Base):
     __tablename__ = "knowledge_banks"
+    
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
+    password = Column(String(255), nullable=False, unique=True) # السطر ده اللي ناقص
+
     units = relationship("Unit", back_populates="knowledge_bank", cascade="all, delete-orphan")
     personalities = relationship("Personality", back_populates="knowledge_bank", cascade="all, delete-orphan")
-
 class Unit(Base):
     __tablename__ = "units"
     id = Column(Integer, primary_key=True, autoincrement=True)
