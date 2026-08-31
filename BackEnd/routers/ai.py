@@ -14,7 +14,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
-from db import get_session, Personality, Lesson, LessonPart, StudentHistory
+# تم إضافة Student للاستدعاءات هنا
+from db import get_session, Personality, Lesson, LessonPart, StudentHistory, Student
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,14 +28,13 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 class UserRequest(BaseModel):
     prompt: str
     lesson_id: Optional[int] = None
-    student_id: str  # تم تعديلها من int إلى str لتتطابق مع قاعدة البيانات
+    student_id: str 
     image: Optional[str] = None
 
 
 @ai_router.get("/personality/{kb_id}")
 async def get_personality(kb_id: int, session: AsyncSession = Depends(get_session)):
     try:
-        # البحث عن شخصية المدرس صاحب هذا الـ ID فقط
         stmt = select(Personality).where(Personality.knowledge_bank_id == kb_id)
         result = await session.execute(stmt)
         personality = result.scalars().first()
@@ -53,8 +53,9 @@ async def get_personality(kb_id: int, session: AsyncSession = Depends(get_sessio
             detail=f"Internal Server Error: {str(e)}"
         )
 
+
 @ai_router.get("/history/sidebar/{student_id}")
-async def get_sidebar_history(student_id: str, session: AsyncSession = Depends(get_session)):  # تم تعديل student_id إلى str
+async def get_sidebar_history(student_id: str, session: AsyncSession = Depends(get_session)):
     try:
         stmt = select(Lesson).join(StudentHistory).where(StudentHistory.student_id == student_id).distinct()
         result = await session.execute(stmt)
@@ -71,7 +72,7 @@ async def get_sidebar_history(student_id: str, session: AsyncSession = Depends(g
 
 
 @ai_router.get("/history/chat/{student_id}/{lesson_id}")
-async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSession = Depends(get_session)):  # تم تعديل student_id إلى str
+async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSession = Depends(get_session)):
     try:
         stmt = select(StudentHistory).where(
             StudentHistory.lesson_id == lesson_id,
@@ -94,7 +95,7 @@ async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSessio
 @ai_router.post("/ask-ai/")
 async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_session)):
     try:
-                # ==========================================
+        # ==========================================
         # 1. إعداد التعليمات (النظام + الآدمن)
         # ==========================================
         base_instruction = (
@@ -116,13 +117,12 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         
         admin_instruction = ""
         
-        # معرفة الطالب تبع أي مدرس (بنك معرفة)
+        # تم تصحيح الكلاس ليصبح Student (بحرف S كبير)
         stmt_student = select(Student).where(Student.student_id == request.student_id)
         result_student = await session.execute(stmt_student)
         student = result_student.scalars().first()
 
         if student and student.knowledge_bank_id:
-            # جلب شخصية المدرس الخاص بهذا الطالب
             stmt_pers = select(Personality).where(Personality.knowledge_bank_id == student.knowledge_bank_id)
             result_pers = await session.execute(stmt_pers)
             personality = result_pers.scalars().first()
@@ -162,7 +162,7 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             contents.append({"mime_type": mime_type, "data": image_bytes})
 
         # ==========================================
-        # 4. الـ Model Fallbacks (التنفيذ بشكل Async مع توقيت)
+        # 4. الـ Model Fallbacks
         # ==========================================
         models_to_try = [
             'gemini-1.5-flash',

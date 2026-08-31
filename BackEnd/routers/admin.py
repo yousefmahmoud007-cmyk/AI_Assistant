@@ -4,11 +4,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+
 from db import get_session, KnowledgeBank, Unit, Lesson, LessonPart, Personality
 
 admin_router = APIRouter(prefix="/admin", tags=["Admin Panel"])
 
-# --- تعديل: إضافة الـ ID لقوالب الاستقبال ---
+# ==========================================
+# 1. قوالب البيانات (Pydantic Models)
+# ==========================================
+class LoginRequest(BaseModel):
+    username: str  # الواجهة ترسل الـ ID في حقل username
+    password: str
+
 class PartCreate(BaseModel):
     id: Optional[int] = None
     title: str
@@ -32,35 +39,50 @@ class ModelSettingsCreate(BaseModel):
     image_base64: Optional[str] = None
 
 class BulkUploadRequest(BaseModel):
-    bank_id: Optional[int] = None 
+    bank_id: Optional[int] = None
     model_settings: ModelSettingsCreate
     knowledge_bank_title: str
     units: List[UnitCreateBulk]
 
-class UnitCreate(BaseModel):
-    title: str
-    knowledge_bank_id: int
+# ==========================================
+# 2. مسار تسجيل الدخول (حل مشكلة 404)
+# ==========================================
+@admin_router.post("/login")
+async def login(request: LoginRequest, session: AsyncSession = Depends(get_session)):
+    try:
+        kb_id = int(request.username) # تحويل المدخل إلى رقم لأن ID المدرس عبارة عن رقم
+    except ValueError:
+        raise HTTPException(status_code=401, detail="ID غير صحيح")
 
-class LessonCreate(BaseModel):
-    title: str
-    unit_id: int
+    stmt = select(KnowledgeBank).where(
+        KnowledgeBank.id == kb_id,
+        KnowledgeBank.password == request.password
+    )
+    result = await session.execute(stmt)
+    bank = result.scalars().first()
 
+    if not bank:
+        raise HTTPException(status_code=401, detail="ID أو كلمة المرور غير صحيحة")
+    
+    return {"message": "تم تسجيل الدخول بنجاح", "id": bank.id}
+
+
+# ==========================================
+# 3. مسار رفع المنهج (مكتمل وسليم)
+# ==========================================
 @admin_router.post("/bulk-upload/")
 async def upload_full_subject(payload: BulkUploadRequest, session: AsyncSession = Depends(get_session)):
     try:
         existing_bank = None
         
-        # 1. لو الواجهة بعتت ID، هندور عليه الأول
         if payload.bank_id:
             bank_stmt = select(KnowledgeBank).options(
                 selectinload(KnowledgeBank.units).selectinload(Unit.lessons).selectinload(Lesson.lesson_parts),
                 selectinload(KnowledgeBank.personalities)
             ).where(KnowledgeBank.id == payload.bank_id)
-            
             result = await session.execute(bank_stmt)
             existing_bank = result.scalars().first()
-            
-        # 2. لو المنهج موجود فعلاً (تحديث)
+
         if existing_bank:
             existing_bank.title = payload.knowledge_bank_title
             
@@ -134,13 +156,12 @@ async def upload_full_subject(payload: BulkUploadRequest, session: AsyncSession 
                         for part_data in lesson_data.parts:
                             new_part = LessonPart(title=part_data.title, lesson_content=part_data.lesson_content, example=part_data.example, question=part_data.question, lesson_id=new_lesson.id)
                             session.add(new_part)
-
+                            
             await session.commit()
             return {"message": "تم حفظ وتحديث المادة بنجاح!", "bank_id": existing_bank.id}
             
-        # 3. لو مفيش ID مبعوت، أو الـ ID مبعوت بس اتمسح من الداتا بيز (إنشاء جديد من الصفر)
         else:
-            new_bank = KnowledgeBank(title=payload.knowledge_bank_title)
+            new_bank = KnowledgeBank(title=payload.knowledge_bank_title, password="123") # وضع باسوورد افتراضي للإدمن الجديد
             session.add(new_bank)
             await session.flush()
             
@@ -158,7 +179,7 @@ async def upload_full_subject(payload: BulkUploadRequest, session: AsyncSession 
                     for part_data in lesson_data.parts:
                         new_part = LessonPart(title=part_data.title, lesson_content=part_data.lesson_content, example=part_data.example, question=part_data.question, lesson_id=new_lesson.id)
                         session.add(new_part)
-            
+                        
             await session.commit()
             return {"message": "تم إنشاء وحفظ المادة بنجاح!", "bank_id": new_bank.id}
             
@@ -166,13 +187,17 @@ async def upload_full_subject(payload: BulkUploadRequest, session: AsyncSession 
         await session.rollback()
         raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء حفظ البيانات: {str(e)}")
 
-@admin_router.get("/knowledge-bank/")
-async def get_full_knowledge_bank(session: AsyncSession = Depends(get_session)):
+
+# ==========================================
+# 4. مسار جلب المنهج (معدل ليدعم Multi-Tenancy)
+# ==========================================
+@admin_router.get("/knowledge-bank/{kb_id}")
+async def get_full_knowledge_bank(kb_id: int, session: AsyncSession = Depends(get_session)):
     try:
         bank_stmt = select(KnowledgeBank).options(
             selectinload(KnowledgeBank.units).selectinload(Unit.lessons).selectinload(Lesson.lesson_parts),
             selectinload(KnowledgeBank.personalities)
-        ).order_by(KnowledgeBank.id.desc())
+        ).where(KnowledgeBank.id == kb_id) # البحث بالـ ID المبعوث فقط
         
         bank_result = await session.execute(bank_stmt)
         knowledge_bank = bank_result.scalars().first()
@@ -193,7 +218,6 @@ async def get_full_knowledge_bank(session: AsyncSession = Depends(get_session)):
             "units": []
         }
         
-        # --- تعديل: إرسال الـ IDs للواجهة ---
         for unit in knowledge_bank.units:
             unit_data = {
                 "id": unit.id,
