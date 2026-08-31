@@ -102,7 +102,7 @@ if(loginForm) {
                 
                 // التوجيه لصفحة رفع المنهج (Bulk Upload)
                 setTimeout(() => {
-                    window.location.href = "admin_dashboard.html"; // ضع رابط صفحة التحكم هنا
+                    window.location.href = "https://ai-assistant-iota-eight.vercel.app/admin/admin.html"; // ضع رابط صفحة التحكم هنا
                 }, 1000);
 
             } else {

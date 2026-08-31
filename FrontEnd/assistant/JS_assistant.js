@@ -13,10 +13,15 @@ const imagePreview = document.getElementById('imagePreview');
 const removeImageBtn = document.getElementById('removeImageBtn');
 const headerModelImage = document.getElementById('headerModelImage');
 
-// المتغيرات العامة
+// ==========================================
+// المتغيرات العامة (مع تثبيت القيم مؤقتاً)
+// ==========================================
+const API_BASE_URL = "https://aiassistant-production-88d9.up.railway.app";
+const CURRENT_KB_ID = 1;           // رقم المدرس (بنك المعرفة)
+const CURRENT_STUDENT_ID = "1";    // رقم الطالب (نص String بناءً على تعديل الباك إند الأخير)
+
 let currentImageBase64 = null;
 let activeLessonId = 1;
-const CURRENT_STUDENT_ID = 1;
 
 // ==========================================
 // 1. نظام إضافة وعرض الرسائل
@@ -37,18 +42,18 @@ function appendMessage(text, imageBase64, sender) {
     if (text) {
         const textElement = document.createElement('div');
         if (sender === 'ai') {
-            textElement.innerHTML = marked.parse(text); // تحويل الماركداون هنا
+            textElement.innerHTML = marked.parse(text); 
         } else {
-            textElement.innerHTML = text.replace(/\n/g, "<br>"); // نص الطالب العادي
+            textElement.innerHTML = text.replace(/\n/g, "<br>");
         }
         messageElement.appendChild(textElement);
     }
 
     chatHistory.appendChild(messageElement);
-    
-    // التعديل هنا: التمرير لأسفل فقط لو الطالب هو اللي باعت
+
+    // التمرير لأسفل فقط لو الطالب هو اللي باعت
     if (sender === 'student') {
-        chatHistory.scrollTop = chatHistory.scrollHeight; 
+        chatHistory.scrollTop = chatHistory.scrollHeight;
     }
 }
 
@@ -63,12 +68,10 @@ async function sendToBackend(messageText, imageBase64) {
     loadingElement.textContent = "جاري التفكير...";
     
     chatHistory.appendChild(loadingElement);
-    
-    // لو مش عايز الشات ينزل لما تظهر رسالة "جاري التفكير"، احذف أو اعمل كومنت للسطر ده:
-    // chatHistory.scrollTop = chatHistory.scrollHeight; 
+    chatHistory.scrollTop = chatHistory.scrollHeight;
 
     try {
-        const response = await fetch("https://aiassistant-production-88d9.up.railway.app/ai/ask-ai/", {
+        const response = await fetch(`${API_BASE_URL}/ai/ask-ai/`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -80,15 +83,14 @@ async function sendToBackend(messageText, imageBase64) {
                 student_id: CURRENT_STUDENT_ID
             })
         });
-
         const data = await response.json();
         document.getElementById(loadingId).remove();
-
+        
         if (response.ok) {
             appendMessage(data.response, null, 'ai');
             loadSidebarHistory(); // تحديث القائمة
         } else {
-            appendMessage(`خطأ من الخادم: ${data.detail}`, null, 'ai');
+            appendMessage(`خطأ من الخادم: ${data.detail || data.response}`, null, 'ai');
         }
     } catch (error) {
         document.getElementById(loadingId).remove();
@@ -131,8 +133,8 @@ if (newChatBtn) {
 
 openSidebarBtn.addEventListener('click', () => sidebar.classList.add('active'));
 closeSidebarBtn.addEventListener('click', () => sidebar.classList.remove('active'));
-
 uploadTriggerBtn.addEventListener('click', () => imageInput.click());
+
 imageInput.addEventListener('change', function(event) {
     const file = event.target.files[0];
     if (file) {
@@ -159,7 +161,8 @@ async function loadOldChat(lessonId) {
     try {
         activeLessonId = lessonId;
         chatHistory.innerHTML = '<p style="text-align:center; color:gray; margin-top: 20px;" id="loadingOldChat">جاري تحميل المحادثة...</p>';
-        const response = await fetch(`https://aiassistant-production-88d9.up.railway.app/ai/history/chat/${CURRENT_STUDENT_ID}/${lessonId}`);
+        
+        const response = await fetch(`${API_BASE_URL}/ai/history/chat/${CURRENT_STUDENT_ID}/${lessonId}`);
         document.getElementById('loadingOldChat').remove();
         
         if (response.ok) {
@@ -169,7 +172,6 @@ async function loadOldChat(lessonId) {
                 return;
             }
             data.messages.forEach(msg => {
-                // الميزة هنا إن appendMessage هتحول الـ AI بالـ marked تلقائياً
                 appendMessage(msg.message, msg.image_base64, msg.sender);
             });
         }
@@ -180,20 +182,29 @@ async function loadOldChat(lessonId) {
 
 async function loadAIPersonality() {
     try {
-        const response = await fetch("https://aiassistant-production-88d9.up.railway.app/ai/personality/");
+        // تم إضافة الـ ID للرابط لحل مشكلة 404
+        const response = await fetch(`${API_BASE_URL}/ai/personality/${CURRENT_KB_ID}`);
         if (response.ok) {
             const data = await response.json();
-            if (data.image_base64) headerModelImage.src = data.image_base64;
+            if (data.image_base64) {
+                headerModelImage.src = data.image_base64;
+            } else {
+                // ضبط مسار الصورة الافتراضية للرجوع مجلد للخلف
+                headerModelImage.src = "../logo.png";
+            }
             if (data.name) headerModelImage.title = data.name;
+        } else {
+            headerModelImage.src = "../logo.png";
         }
     } catch (error) {
         console.error("تعذر جلب بيانات المساعد الذكي:", error);
+        headerModelImage.src = "../logo.png";
     }
 }
 
 async function loadSidebarHistory() {
     try {
-        const response = await fetch(`https://aiassistant-production-88d9.up.railway.app/ai/history/sidebar/${CURRENT_STUDENT_ID}`);
+        const response = await fetch(`${API_BASE_URL}/ai/history/sidebar/${CURRENT_STUDENT_ID}`);
         if (response.ok) {
             const data = await response.json();
             const sidebarContainer = document.getElementById('chatHistorySidebar');
