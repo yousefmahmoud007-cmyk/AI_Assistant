@@ -1,7 +1,7 @@
 import os
 import sys
 import base64
-import asyncio # تم الإضافة لدعم التوقيت
+import asyncio
 import google.generativeai as genai
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -18,6 +18,7 @@ from db import get_session, Personality, Lesson, LessonPart, StudentHistory
 from dotenv import load_dotenv
 
 load_dotenv()
+
 ai_router = APIRouter(prefix="/ai", tags=["AI Integration"])
 
 # إعداد المكتبة المستقرة
@@ -26,8 +27,9 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 class UserRequest(BaseModel):
     prompt: str
     lesson_id: Optional[int] = None
-    student_id: int
+    student_id: str  # تم تعديلها من int إلى str لتتطابق مع قاعدة البيانات
     image: Optional[str] = None
+
 
 @ai_router.get("/personality/")
 async def get_personality(session: AsyncSession = Depends(get_session)):
@@ -48,8 +50,9 @@ async def get_personality(session: AsyncSession = Depends(get_session)):
             detail=f"Internal Server Error: {str(e)}"
         )
 
+
 @ai_router.get("/history/sidebar/{student_id}")
-async def get_sidebar_history(student_id: int, session: AsyncSession = Depends(get_session)):
+async def get_sidebar_history(student_id: str, session: AsyncSession = Depends(get_session)):  # تم تعديل student_id إلى str
     try:
         stmt = select(Lesson).join(StudentHistory).where(StudentHistory.student_id == student_id).distinct()
         result = await session.execute(stmt)
@@ -64,8 +67,9 @@ async def get_sidebar_history(student_id: int, session: AsyncSession = Depends(g
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @ai_router.get("/history/chat/{student_id}/{lesson_id}")
-async def get_chat_history(student_id: int, lesson_id: int, session: AsyncSession = Depends(get_session)):
+async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSession = Depends(get_session)):  # تم تعديل student_id إلى str
     try:
         stmt = select(StudentHistory).where(
             StudentHistory.lesson_id == lesson_id,
@@ -84,6 +88,7 @@ async def get_chat_history(student_id: int, lesson_id: int, session: AsyncSessio
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @ai_router.post("/ask-ai/")
 async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_session)):
     try:
@@ -91,8 +96,8 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         # 1. إعداد التعليمات (النظام + الآدمن)
         # ==========================================
         base_instruction = (
-            "لو طالب قال مفهمش اشرح السؤال او الجزء اللي مفهمهوش بس مش الدرس كله"
-            "نوع في الاسلوب بس متخرجش عن الاساس"
+            "لو طالب قال مفهمش اشرح السؤال أو الجزء اللي مفهمهوش بس مش الدرس كله. "
+            "نوع في الأسلوب بس متخرجش عن الأساس. "
             "أنت معلم ذكي ومحترف لطلاب الثانوية العامة. "
             "يجب عليك دائماً تقديم إجابات دقيقة ومبسطة تتناسب مع عقلية الطالب. "
             "ممنوع منعاً باتاً أن تذكر أنك نموذج ذكاء اصطناعي من جوجل أو أنك برنامج. "
@@ -147,11 +152,9 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         # ==========================================
         # 4. الـ Model Fallbacks (التنفيذ بشكل Async مع توقيت)
         # ==========================================
-        # تم استبدال الموديلات القديمة بأخرى رسمية ومدعومة لسرعة الاستجابة وتفادي أخطاء Quota
         models_to_try = [
-            'gemini-3.7-flash',
-            'gemini-3.6-flash',
-            'gemini-3.5-flash',
+            'gemini-1.5-flash',
+            'gemini-1.5-pro',
         ]
         
         response_text = None
@@ -161,15 +164,12 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
                     model_name=model_name,
                     system_instruction=final_system_instruction
                 )
-                
-                # استخدام wait_for لمنع السيرفر من التعليق للأبد (40 ثانية كحد أقصى لكل موديل)
                 response = await asyncio.wait_for(
                     custom_model.generate_content_async(contents),
                     timeout=40.0
                 )
                 response_text = response.text
                 break
-                
             except asyncio.TimeoutError:
                 print(f"الموديل {model_name} أخذ وقت طويل (Timeout)، نجرب التالي...")
                 continue
@@ -191,7 +191,7 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             image_base64=request.image
         )
         session.add(student_msg)
-        
+
         ai_msg = StudentHistory(
             student_id=request.student_id,
             lesson_id=request.lesson_id,
@@ -199,7 +199,7 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             message=response_text
         )
         session.add(ai_msg)
-        
+
         await session.commit()
         return {"response": response_text}
 
