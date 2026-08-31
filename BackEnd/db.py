@@ -88,8 +88,7 @@ class Student(Base):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(255), nullable=False)
-    password = Column(String(255), nullable=False)
-    email = Column(String(255), nullable=False)
+    student_id = Column(String(255), nullable=False, unique=True)
     knowledge_bank_id = Column(Integer, ForeignKey("knowledge_banks.id"))
     knowledge_bank = relationship("KnowledgeBank")
     student_history = relationship("StudentHistory", back_populates="student")
@@ -97,7 +96,7 @@ class Student(Base):
 class StudentHistory(Base):
     __tablename__ = "student_history"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    student_id = Column(Integer, ForeignKey("students.id"), nullable=True)
+    student_id = Column(String(255), ForeignKey("students.student_id"), nullable=True)
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=True)
     sender = Column(String(50), nullable=False)
     message = Column(Text, nullable=False)

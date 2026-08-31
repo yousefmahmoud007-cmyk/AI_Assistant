@@ -1,0 +1,120 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700&display=swap');
+
+:root {
+    --primary-color: #41a7f0;
+    --primary-color-hover: #2589dc;
+    --secondary-bg-color: #f8fafc;
+    --main-bg-color: #ffffff;
+    --main-text-color: #0f172a;
+    --border-color: #e2e8f0;
+    --font-heading: 'Cairo', sans-serif;
+    --font-body: 'Tajawal', sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: var(--secondary-bg-color);
+    font-family: var(--font-body);
+    direction: rtl; /* توجيه الصفحة لليمين لتناسب لوحة تحكم عربية */
+}
+
+/* الصندوق الرئيسي */
+.login-container {
+    background-color: var(--main-bg-color);
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(65, 167, 240, 0.1);
+    width: 100%;
+    max-width: 400px;
+    border: 1px solid var(--border-color);
+}
+
+.login-container h2 {
+    font-family: var(--font-heading);
+    color: var(--primary-color);
+    font-size: 28px;
+    margin-bottom: 25px;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* تنسيق النموذج */
+#loginForm {
+    display: flex;
+    flex-direction: column;
+}
+
+/* إخفاء الـ br الموجودة في الـ HTML واستخدام مسافات حديثة */
+#loginForm br {
+    display: none; 
+}
+
+label {
+    font-size: 15px;
+    color: var(--main-text-color);
+    font-weight: 600;
+    margin-bottom: 8px;
+    margin-top: 15px;
+    text-align: left; /* محاذاة النص لليسار */
+    direction: ltr; /* التوجيه من اليسار لليمين */
+}
+
+input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--secondary-bg-color);
+    color: var(--main-text-color);
+    font-family: var(--font-body);
+    font-size: 15px;
+    transition: all 0.3s ease;
+    outline: none;
+    text-align: left; /* الكتابة داخل الحقل تبدأ من اليسار */
+    direction: ltr; /* توجيه الكتابة الإنجليزية */
+}
+
+
+input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(65, 167, 240, 0.15);
+    background-color: var(--main-bg-color);
+}
+
+button {
+    background-color: var(--primary-color);
+    color: #fff;
+    border: none;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 25px;
+}
+
+button:hover:not(:disabled) {
+    background-color: var(--primary-color-hover);
+    transform: translateY(-2px);
+}
+
+button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* إخفاء رسالة الخطأ القديمة */
+#error-message {
+    display: none;
+}

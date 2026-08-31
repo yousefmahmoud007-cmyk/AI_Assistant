@@ -35,26 +35,25 @@ CREATE TABLE PERSONALITY (
     id SERIAL PRIMARY KEY, 
     name VARCHAR(255) NOT NULL, 
     description TEXT NOT NULL, 
-    image_base64 TEXT NOT NULL, 
+    image_base64 TEXT, 
     knowledge_bank_id int, 
     CONSTRAINT fk_personality FOREIGN KEY (knowledge_bank_id) REFERENCES knowledge_banks(id) on delete cascade
 );
 CREATE TABLE Students (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
+    student_id VARCHAR(255) NOT NULL UNIQUE,
     knowledge_bank_id int,
     CONSTRAINT fk_student_knowledge_bank FOREIGN KEY (knowledge_bank_id) REFERENCES knowledge_banks(id) on delete cascade
 );
 CREATE TABLE Student_history ( 
     id SERIAL PRIMARY KEY,
-    student_id INT, -- عشان نربط المحادثة بالطالب لما تفعل تسجيل الدخول
+    student_id VARCHAR(255), -- عشان نربط المحادثة بالطالب لما تفعل تسجيل الدخول
     lesson_id INT,  -- عشان نعرف المحادثة دي كانت في أي درس
     sender VARCHAR(50) NOT NULL, -- قيمته هتكون 'student' أو 'ai'
     message TEXT NOT NULL,
     image_base64 TEXT, -- لحفظ الصورة لو الطالب رفع واحدة
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_chat_student FOREIGN KEY (student_id) REFERENCES Students(id) on delete cascade, 
+    CONSTRAINT fk_chat_student FOREIGN KEY (student_id) REFERENCES Students(student_id) on delete cascade, 
     CONSTRAINT fk_chat_lesson FOREIGN KEY (lesson_id) REFERENCES Lessons(id) on delete cascade
 );

@@ -12,21 +12,36 @@ let currentKnowledgeBankId = null;
 // 2. جلب البيانات عند تحميل الصفحة
 // ==========================================
 window.addEventListener('DOMContentLoaded', async () => {
-    // جلب بيانات الشخصية 
+    
+    // 1. جلب الـ ID بتاع الـ Admin من التخزين المحلي (اللي اتسجل وقت الدخول)
+    const adminId = localStorage.getItem("admin_id");
+
+    // 2. لو مفيش ID، يبقى الإدمن ده مدخلش من صفحة الـ Login، نرجعه ليها فوراً
+    if (!adminId) {
+        alert("يرجى تسجيل الدخول أولاً!");
+        window.location.href = "login.html"; // تأكد إن ده اسم صفحة الدخول بتاعتك
+        return;
+    }
+
+    console.log("جاري جلب بيانات المدرس رقم:", adminId);
+
+    // جلب بيانات الشخصية
     try {
-        const aiResponse = await fetch("https://aiassistant-production-88d9.up.railway.app/ai/personality/");
+        // ضفنا الـ adminId في آخر الرابط عشان السيرفر يعرف شخصية مين اللي هترجع
+        const aiResponse = await fetch(`https://aiassistant-production-88d9.up.railway.app/ai/personality/${adminId}`);
         if (aiResponse.ok) {
             const aiData = await aiResponse.json();
             const modelNameEl = document.getElementById('modelName');
             const modelPersonalityEl = document.getElementById('modelPersonality');
-
+            
             if (modelNameEl) modelNameEl.value = aiData.name || "";
             if (modelPersonalityEl) modelPersonalityEl.value = aiData.description || "";
-
+            
             if (aiData.image_base64) {
                 currentModelImageBase64 = aiData.image_base64;
                 const imgPreview = document.getElementById('modelImagePreview');
                 const cameraIcon = document.getElementById('cameraIcon');
+                
                 if (imgPreview) {
                     imgPreview.src = currentModelImageBase64;
                     imgPreview.style.display = 'block';
@@ -38,122 +53,123 @@ window.addEventListener('DOMContentLoaded', async () => {
         console.error("خطأ في جلب الشخصية:", error);
     }
 
-    // جلب بيانات المنهج 
+    // جلب بيانات المنهج
     try {
-        const adminResponse = await fetch("https://aiassistant-production-88d9.up.railway.app/admin/knowledge-bank/");
+        // ضفنا الـ adminId في آخر الرابط عشان السيرفر يرجع منهج المدرس ده بس
+        const adminResponse = await fetch(`https://aiassistant-production-88d9.up.railway.app/admin/knowledge-bank/${adminId}`);
         if (adminResponse.ok) {
             const adminData = await adminResponse.json();
-
+            
             if (adminData.message === "لا توجد بيانات محفوظة بعد") {
                 togglePageMode(false);
                 return;
             }
-
+            
             if (adminData.id) currentKnowledgeBankId = adminData.id;
-
+            
             const subjectNameEl = document.getElementById('subjectName');
             if (subjectNameEl && adminData.knowledge_bank_title) {
                 subjectNameEl.value = adminData.knowledge_bank_title;
             }
-
+            
             const unitsContainer = document.getElementById('unitsContainer');
             if (unitsContainer) {
                 unitsContainer.innerHTML = '';
                 unitCount = 0;
                 lessonCounters = {};
                 partCounters = {};
-
+                
                 if (adminData.units && adminData.units.length > 0) {
                     adminData.units.forEach((unitData) => {
                         unitCount++;
                         lessonCounters[unitCount] = 0;
-
+                        
                         // زرع الـ ID في الوحدة
                         const unitHTML = `
-                            <div class="unit-box shadow-sm p-3 mb-4 bg-white rounded" id="unit_${unitCount}" data-id="${unitData.id || ''}">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <div class="d-flex align-items-end w-100 me-3">
-                                        <button class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('unitContent_${unitCount}', 'arrowUnit_${unitCount}')" id="arrowUnit_${unitCount}">▼</button>
-                                        <div class="w-100">
-                                            <label class="form-label fw-bold fs-5 text-dark">اسم الباب / الوحدة</label>
-                                            <input type="text" class="form-control unit-title border-dark" value="${unitData.title}">
-                                        </div>
+                        <div class="unit-box shadow-sm p-3 mb-4 bg-white rounded" id="unit_${unitCount}" data-id="${unitData.id || ''}">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-end w-100 me-3">
+                                    <button class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('unitContent_${unitCount}', 'arrowUnit_${unitCount}')" id="arrowUnit_${unitCount}">▼</button>
+                                    <div class="w-100">
+                                        <label class="form-label fw-bold fs-5 text-dark">اسم الباب / الوحدة</label>
+                                        <input type="text" class="form-control unit-title border-dark" value="${unitData.title}">
                                     </div>
-                                    <button class="btn btn-danger mt-4 action-btn-dynamic" onclick="removeBlock('unit_${unitCount}')">حذف الباب</button>
                                 </div>
-                                <div id="unitContent_${unitCount}">
-                                    <div id="lessonsContainer_${unitCount}"></div>
-                                    <button class="btn btn-outline-primary w-100 mt-3 py-2 fw-bold action-btn-dynamic" onclick="addLesson(${unitCount})">
-                                        + إضافة درس لهذه الوحدة
-                                    </button>
-                                </div>
+                                <button class="btn btn-danger mt-4 action-btn-dynamic" onclick="removeBlock('unit_${unitCount}')">حذف الباب</button>
                             </div>
+                            <div id="unitContent_${unitCount}">
+                                <div id="lessonsContainer_${unitCount}"></div>
+                                <button class="btn btn-outline-primary w-100 mt-3 py-2 fw-bold action-btn-dynamic" onclick="addLesson(${unitCount})">
+                                    + إضافة درس لهذه الوحدة
+                                </button>
+                            </div>
+                        </div>
                         `;
                         unitsContainer.insertAdjacentHTML('beforeend', unitHTML);
-
+                        
                         if (unitData.lessons && unitData.lessons.length > 0) {
                             unitData.lessons.forEach((lessonData) => {
                                 lessonCounters[unitCount]++;
                                 const lessonId = lessonCounters[unitCount];
                                 const uniqueLessonId = `${unitCount}_${lessonId}`;
                                 partCounters[uniqueLessonId] = 0;
-
+                                
                                 // زرع الـ ID في الدرس
                                 const lessonHTML = `
-                                    <div class="lesson-box shadow-sm p-3 mb-3 bg-light rounded border" id="lesson_${uniqueLessonId}" data-id="${lessonData.id || ''}">
-                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                            <div class="d-flex align-items-end w-100 me-3">
-                                                <button class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('lessonContent_${uniqueLessonId}', 'arrowLesson_${uniqueLessonId}')" id="arrowLesson_${uniqueLessonId}">▼</button>
-                                                <div class="w-100">
-                                                    <label class="form-label fw-bold text-primary">اسم الدرس</label>
-                                                    <input type="text" class="form-control lesson-title border-primary" value="${lessonData.title}">
-                                                </div>
+                                <div class="lesson-box shadow-sm p-3 mb-3 bg-light rounded border" id="lesson_${uniqueLessonId}" data-id="${lessonData.id || ''}">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div class="d-flex align-items-end w-100 me-3">
+                                            <button class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('lessonContent_${uniqueLessonId}', 'arrowLesson_${uniqueLessonId}')" id="arrowLesson_${uniqueLessonId}">▼</button>
+                                            <div class="w-100">
+                                                <label class="form-label fw-bold text-primary">اسم الدرس</label>
+                                                <input type="text" class="form-control lesson-title border-primary" value="${lessonData.title}">
                                             </div>
-                                            <button class="btn btn-outline-danger btn-sm mt-4 action-btn-dynamic" onclick="removeBlock('lesson_${uniqueLessonId}')">حذف الدرس</button>
                                         </div>
-                                        <div id="lessonContent_${uniqueLessonId}">
-                                            <div id="partsContainer_${uniqueLessonId}"></div>
-                                            <button class="btn btn-outline-secondary w-100 mt-3 fw-bold action-btn-dynamic" onclick="addPart('${uniqueLessonId}')">
-                                                + إضافة جزء جديد
-                                            </button>
-                                        </div>
+                                        <button class="btn btn-outline-danger btn-sm mt-4 action-btn-dynamic" onclick="removeBlock('lesson_${uniqueLessonId}')">حذف الدرس</button>
                                     </div>
+                                    <div id="lessonContent_${uniqueLessonId}">
+                                        <div id="partsContainer_${uniqueLessonId}"></div>
+                                        <button class="btn btn-outline-secondary w-100 mt-3 fw-bold action-btn-dynamic" onclick="addPart('${uniqueLessonId}')">
+                                            + إضافة جزء جديد
+                                        </button>
+                                    </div>
+                                </div>
                                 `;
                                 document.getElementById(`lessonsContainer_${unitCount}`).insertAdjacentHTML('beforeend', lessonHTML);
-
+                                
                                 if (lessonData.parts && lessonData.parts.length > 0) {
                                     lessonData.parts.forEach((partData) => {
                                         partCounters[uniqueLessonId]++;
                                         const partId = partCounters[uniqueLessonId];
                                         const partElementId = `part_${uniqueLessonId}_${partId}`;
-
+                                        
                                         // زرع الـ ID في الجزء
                                         const partHTML = `
-                                            <div class="part-box p-3 mb-2 bg-white rounded border border-secondary" id="${partElementId}" data-id="${partData.id || ''}">
-                                                <div class="d-flex justify-content-end mb-2">
-                                                    <button class="btn btn-sm text-danger fw-bold action-btn-dynamic" onclick="removeBlock('${partElementId}')">✖ حذف الجزء</button>
+                                        <div class="part-box p-3 mb-2 bg-white rounded border border-secondary" id="${partElementId}" data-id="${partData.id || ''}">
+                                            <div class="d-flex justify-content-end mb-2">
+                                                <button class="btn btn-sm text-danger fw-bold action-btn-dynamic" onclick="removeBlock('${partElementId}')">✖ حذف الجزء</button>
+                                            </div>
+                                            <div class="row align-items-stretch">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold">اسم الجزء</label>
+                                                        <input type="text" class="form-control part-title" value="${partData.title}">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold text-success">أمثلة</label>
+                                                        <textarea class="form-control part-example" rows="2">${partData.example || ''}</textarea>
+                                                    </div>
+                                                    <div>
+                                                        <label class="form-label fw-bold text-danger">أسئلة</label>
+                                                        <textarea class="form-control part-question" rows="2">${partData.question || ''}</textarea>
+                                                    </div>
                                                 </div>
-                                                <div class="row align-items-stretch">
-                                                    <div class="col-md-6">
-                                                        <div class="mb-3">
-                                                            <label class="form-label fw-bold">اسم الجزء</label>
-                                                            <input type="text" class="form-control part-title" value="${partData.title}">
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label class="form-label fw-bold text-success">أمثلة</label>
-                                                            <textarea class="form-control part-example" rows="2">${partData.example || ''}</textarea>
-                                                        </div>
-                                                        <div>
-                                                            <label class="form-label fw-bold text-danger">أسئلة</label>
-                                                            <textarea class="form-control part-question" rows="2">${partData.question || ''}</textarea>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-6 d-flex flex-column mb-3">
-                                                        <label class="form-label fw-bold text-primary">الشرح</label>
-                                                        <textarea class="form-control explanation-area part-lesson-content flex-grow-1">${partData.lesson_content || ''}</textarea>
-                                                    </div>
+                                                <div class="col-md-6 d-flex flex-column mb-3">
+                                                    <label class="form-label fw-bold text-primary">الشرح</label>
+                                                    <textarea class="form-control explanation-area part-lesson-content flex-grow-1">${partData.lesson_content || ''}</textarea>
                                                 </div>
                                             </div>
+                                        </div>
                                         `;
                                         document.getElementById(`partsContainer_${uniqueLessonId}`).insertAdjacentHTML('beforeend', partHTML);
                                     });
@@ -167,6 +183,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error("خطأ في جلب المنهج:", error);
     }
+
     togglePageMode(false);
 });
 
