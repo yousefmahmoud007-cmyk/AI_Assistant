@@ -330,3 +330,17 @@ body {
 /* أنيميشن */ 
 @keyframes fadeUp { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } } 
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+/* ضبط اتجاه المعادلات الرياضية واللغة الإنجليزية لمنع اللخبطة */
+.message-ai code, .message-student code {
+    direction: ltr !important;
+    display: inline-block;
+    unicode-bidi: isolate; /* السر كله في السطر ده، بيعزل المعادلة عن العربي اللي حواليها */
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #f1f5f9;
+    color: #0f172a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin: 0 4px;
+}
