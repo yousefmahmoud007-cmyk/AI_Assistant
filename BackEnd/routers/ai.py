@@ -170,8 +170,9 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         # 4. الـ Model Fallbacks
         # ==========================================
         models_to_try = [
-            'gemini-1.5-flash',
-            'gemini-1.5-pro',
+            'gemini-3.7-flash',
+            'gemini-3.6-flash',
+            'gemini-3.5-flash'
         ]
         
         response_text = None
