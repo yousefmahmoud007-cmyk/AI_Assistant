@@ -10,29 +10,26 @@ from sqlalchemy.sql import func
 
 # 1. تحميل المتغيرات وإعداد رابط الاتصال
 load_dotenv()
-
 DATABASE_URL = os.getenv("DATABASE_URL")
-
 if DATABASE_URL:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
     elif DATABASE_URL.startswith("postgresql://"):
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-
+    
     # --- الحل السحري الشامل لجميع إضافات Neon ---
     DATABASE_URL = DATABASE_URL.split("?")[0]
 
-# 2. إنشاء المحرك ومدير الجلسات (مع إعدادات استقرار الاتصال)
+# 2. إنشاء المحرك ومدير الجلسات
 engine = create_async_engine(
-    DATABASE_URL, 
-    echo=False, 
+    DATABASE_URL,
+    echo=False,
     connect_args={"ssl": True},
-    pool_pre_ping=True,        # يختبر الاتصال قبل استخدامه لمنع خطأ (connection closed)
-    pool_recycle=300,          # يجدد الاتصال كل 5 دقائق
+    pool_pre_ping=True,
+    pool_recycle=300,
     pool_size=5,
     max_overflow=10
 )
-
 async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 # 3. الفئة الأساسية
@@ -44,13 +41,14 @@ class Base(DeclarativeBase):
 # =========================================================
 class KnowledgeBank(Base):
     __tablename__ = "knowledge_banks"
-    
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
-    password = Column(String(255), nullable=False, unique=True) # السطر ده اللي ناقص
+    password = Column(String(255), nullable=False, unique=True) # ضروري للوحة التحكم
+    instructions = Column(Text, nullable=True) # العمود الجديد للتعليمات
 
     units = relationship("Unit", back_populates="knowledge_bank", cascade="all, delete-orphan")
     personalities = relationship("Personality", back_populates="knowledge_bank", cascade="all, delete-orphan")
+
 class Unit(Base):
     __tablename__ = "units"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -104,7 +102,6 @@ class StudentHistory(Base):
     message = Column(Text, nullable=False)
     image_base64 = Column(Text, nullable=True)
     timestamp = Column(TIMESTAMP, server_default=func.now())
-    
     student = relationship("Student", back_populates="student_history")
     lesson = relationship("Lesson")
 

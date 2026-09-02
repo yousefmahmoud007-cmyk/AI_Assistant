@@ -14,8 +14,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
-# تم إضافة Student للاستدعاءات هنا
-from db import get_session, Personality, Lesson, LessonPart, StudentHistory, Student
+# تم استدعاء KnowledgeBank هنا
+from db import get_session, Personality, Lesson, LessonPart, StudentHistory, Student, KnowledgeBank
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,7 +28,7 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 class UserRequest(BaseModel):
     prompt: str
     lesson_id: Optional[int] = None
-    student_id: str 
+    student_id: str
     image: Optional[str] = None
 
 
@@ -96,32 +96,25 @@ async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSessio
 async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_session)):
     try:
         # ==========================================
-        # 1. إعداد التعليمات (النظام + الآدمن)
+        # 1. إعداد التعليمات (النظام + الآدمن) ديناميكياً
         # ==========================================
-    
-        base_instruction= (
-            "لو طالب قال مفهمش اشرح السؤال أو الجزء اللي مفهمهوش بس مش الدرس كله. "
-            "نوع في الأسلوب بس متخرجش عن الأساس. "
-            "أنت معلم ذكي ومحترف لطلاب الثانوية العامة. "
-            "يجب عليك دائماً تقديم إجابات دقيقة ومبسطة تتناسب مع عقلية الطالب. "
-            "ممنوع منعاً باتاً أن تذكر أنك نموذج ذكاء اصطناعي من جوجل أو أنك برنامج. "
-            "تعليمات صارمة جداً بخصوص الرياضيات واللغات: "
-            "1. ممنوع تماماً استخدام أكواد LaTeX الرياضية أو علامات ($) أو (\\) أو الكسور المعقدة. "
-            "2. اكتب جميع المعادلات الرياضية والكسور كنص عادي (Plain Text) في سطر واحد. "
-            "3. إذا كان المنهج باللغة العربية: استخدم الرموز (س، ص، جا، جتا، ظا، نها، تكامل، ث). "
-            "4. إذا كان المنهج باللغة الإنجليزية (Math): استخدم الرموز الإنجليزية (x, y, sin, cos, tan, dx). واستخدم (+ c) كـ Constant of integration وليس (ث). "
-            "5. تحذير هام بخصوص الكسور: استخدم دائماً كلمة (على) أو علامة (÷) أو (/) بتنسيق واضح. "
-            "6. (هام جداً لضبط اتجاه النص في الموقع): يجب عليك وضع أي معادلة أو تعبير رياضي باللغة الإنجليزية داخل علامتي (Backticks) هكذا: `(2x + 5)^2 + c`. هذا سيمنع انعكاس الأرقام والأقواس في شاشة الطالب. "
-            "7. إذا كان السؤال متعلقاً بمناهج اللغات، استخدم أسلوب الشرح المزدوج: الشرح العام والتوضيح يكون بالعامية المصرية المبسطة، مع الاحتفاظ بجميع المصطلحات العلمية والرياضية باللغة الإنجليزية (مسبوقة بأداة التعريف الـ). "
-        )
+        base_instruction = "أنت معلم ذكي ومحترف لمساعدة الطلاب." # قيمة افتراضية
         admin_instruction = ""
         
-        # تم تصحيح الكلاس ليصبح Student (بحرف S كبير)
         stmt_student = select(Student).where(Student.student_id == request.student_id)
         result_student = await session.execute(stmt_student)
         student = result_student.scalars().first()
 
         if student and student.knowledge_bank_id:
+            # --- جلب التعليمات الخاصة بالبنك ---
+            stmt_bank = select(KnowledgeBank).where(KnowledgeBank.id == student.knowledge_bank_id)
+            result_bank = await session.execute(stmt_bank)
+            bank = result_bank.scalars().first()
+            
+            if bank and bank.instructions:
+                base_instruction = bank.instructions
+
+            # --- جلب الشخصية ---
             stmt_pers = select(Personality).where(Personality.knowledge_bank_id == student.knowledge_bank_id)
             result_pers = await session.execute(stmt_pers)
             personality = result_pers.scalars().first()

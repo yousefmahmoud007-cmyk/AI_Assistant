@@ -8,7 +8,8 @@
 -- DROP TABLE IF EXISTS Student_history CASCADE;
 CREATE TABLE knowledge_banks (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL
+    title VARCHAR(255) NOT NULL,
+    instructions TEXT
 );
 CREATE TABLE Units (
     id SERIAL PRIMARY KEY,
