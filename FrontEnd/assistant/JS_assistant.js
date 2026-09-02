@@ -21,7 +21,7 @@ const CURRENT_KB_ID = 2;           // رقم المدرس (بنك المعرفة
 const CURRENT_STUDENT_ID = "2";    // رقم الطالب (نص String بناءً على تعديل الباك إند الأخير)
 
 let currentImageBase64 = null;
-let activeLessonId = 1;
+let activeLessonId = null;
 
 // ==========================================
 // 1. نظام إضافة وعرض الرسائل
