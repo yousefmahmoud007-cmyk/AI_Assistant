@@ -17,7 +17,7 @@ const headerModelImage = document.getElementById('headerModelImage');
 // المتغيرات العامة (مع تثبيت القيم مؤقتاً)
 // ==========================================
 const API_BASE_URL = "https://aiassistant-production-88d9.up.railway.app";
-const CURRENT_KB_ID = 1;           // رقم المدرس (بنك المعرفة)
+const CURRENT_KB_ID = 2;           // رقم المدرس (بنك المعرفة)
 const CURRENT_STUDENT_ID = "1";    // رقم الطالب (نص String بناءً على تعديل الباك إند الأخير)
 
 let currentImageBase64 = null;
