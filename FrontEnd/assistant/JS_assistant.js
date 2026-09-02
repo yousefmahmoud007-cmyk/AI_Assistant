@@ -125,7 +125,7 @@ chatInput.addEventListener('keypress', function(event) {
 // ==========================================
 if (newChatBtn) {
     newChatBtn.addEventListener('click', () => {
-        chatHistory.innerHTML = '<div class="message-ai">ابو عصام معاك في سؤال.\n سؤال مطروش بقى ولا في السهل منه؟</div>';
+        chatHistory.innerHTML = '<div class="message-ai">مرحبا! كيف يمكنني مساعدتك اليوم؟</div>';
         activeLessonId = 1;
         sidebar.classList.remove('active');
     });
