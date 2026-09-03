@@ -38,12 +38,12 @@ class StudentSignupRequest(BaseModel):
     username: str
     phone_number: str
     password: str
-    knowledge_bank_id: Optional[int] = None # تم التعديل لتكون اختيارية لإنشاء حساب عام
+    knowledge_bank_id: Optional[int] = None
 
 class StudentLoginRequest(BaseModel):
     phone_number: str
     password: str
-    knowledge_bank_id: Optional[int] = None # يفضل جعلها اختيارية هنا أيضاً تحسباً لأي سيناريو
+    knowledge_bank_id: Optional[int] = None
 
 # ==========================================
 # Routes (تسجيل الدخول والإنشاء)
@@ -51,20 +51,17 @@ class StudentLoginRequest(BaseModel):
 @ai_router.post("/signup")
 async def student_signup(request: StudentSignupRequest, session: AsyncSession = Depends(get_session)):
     try:
-        # فحص هل الطالب موجود مسبقاً (رقم الهاتف هو student_id)
         stmt_check = select(Student).where(Student.student_id == request.phone_number)
         res_check = await session.execute(stmt_check)
         if res_check.scalars().first():
             raise HTTPException(status_code=400, detail="رقم الهاتف مسجل مسبقاً")
 
-        # إنشاء الطالب (حساب عام)
         new_student = Student(
             student_id=request.phone_number,
             username=request.username,
             password=request.password 
         )
 
-        # لو تم إرسال كود المدرس، يتم ربط الطالب به
         if request.knowledge_bank_id:
             stmt_kb = select(KnowledgeBank).where(KnowledgeBank.id == request.knowledge_bank_id)
             res_kb = await session.execute(stmt_kb)
@@ -77,7 +74,6 @@ async def student_signup(request: StudentSignupRequest, session: AsyncSession = 
 
         session.add(new_student)
         await session.commit()
-
         return {"message": "تم إنشاء الحساب بنجاح"}
     except HTTPException:
         raise
@@ -88,7 +84,6 @@ async def student_signup(request: StudentSignupRequest, session: AsyncSession = 
 @ai_router.post("/login")
 async def student_login(request: StudentLoginRequest, session: AsyncSession = Depends(get_session)):
     try:
-        # البحث عن الطالب بالهاتف والباسوورد مع جلب بنوك المعرفة المرتبطة به
         stmt = select(Student).options(selectinload(Student.knowledge_banks)).where(
             Student.student_id == request.phone_number,
             Student.password == request.password
@@ -99,7 +94,6 @@ async def student_login(request: StudentLoginRequest, session: AsyncSession = De
         if not student:
             raise HTTPException(status_code=401, detail="رقم الهاتف أو كلمة المرور غير صحيحة")
 
-        # التحقق من كود المدرس وإضافته إذا كان جديداً على الطالب ومبعوث في الـ Request
         if request.knowledge_bank_id:
             stmt_kb = select(KnowledgeBank).where(KnowledgeBank.id == request.knowledge_bank_id)
             res_kb = await session.execute(stmt_kb)
@@ -108,7 +102,6 @@ async def student_login(request: StudentLoginRequest, session: AsyncSession = De
             if not kb:
                 raise HTTPException(status_code=404, detail="كود المدرس غير صحيح")
 
-            # لو الطالب مش مسجل مع المدرس ده قبل كده، ضيفه
             if not any(b.id == kb.id for b in student.knowledge_banks):
                 student.knowledge_banks.append(kb)
                 await session.commit()
@@ -183,13 +176,9 @@ async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSessio
 @ai_router.post("/ask-ai/")
 async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_session)):
     try:
-        # ==========================================
-        # 1. إعداد التعليمات (النظام + الآدمن) ديناميكياً بناءً على الدرس المفتوح
-        # ==========================================
         base_instruction = "أنت معلم ذكي ومحترف لمساعدة الطلاب."
         admin_instruction = ""
 
-        # جلب البنك التابع له الدرس لمعرفة تعليمات المدرس المحددة
         if request.lesson_id:
             stmt_bank = select(KnowledgeBank).join(Unit).join(Lesson).where(Lesson.id == request.lesson_id)
             result_bank = await session.execute(stmt_bank)
@@ -199,7 +188,6 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
                 if bank.instructions:
                     base_instruction = bank.instructions
                 
-                # جلب الشخصية
                 stmt_pers = select(Personality).where(Personality.knowledge_bank_id == bank.id)
                 result_pers = await session.execute(stmt_pers)
                 personality = result_pers.scalars().first()
@@ -210,9 +198,6 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
 
         final_system_instruction = f"{base_instruction}\n{admin_instruction}"
 
-        # ==========================================
-        # 2. جلب السياق (محتوى الدرس)
-        # ==========================================
         context = ""
         if request.lesson_id:
             stmt = select(LessonPart).where(LessonPart.lesson_id == request.lesson_id)
@@ -225,9 +210,6 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
                     if part.example:
                         context += f"أمثلة: {part.example}\n"
 
-        # ==========================================
-        # 3. دمج السياق ومعالجة الصورة (تجهيز الطلب)
-        # ==========================================
         full_prompt = f"{context}\n\nسؤال الطالب: {request.prompt}"
         contents = [full_prompt]
 
@@ -237,9 +219,6 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             mime_type = "image/jpeg" if "jpeg" in request.image or "jpg" in request.image else "image/png"
             contents.append({"mime_type": mime_type, "data": image_bytes})
 
-        # ==========================================
-        # 4. الـ Model Fallbacks
-        # ==========================================
         models_to_try = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']
         response_text = None
 
@@ -265,9 +244,6 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         if not response_text:
             return {"response": "معلش يا بطل فيه ضغط على السيستم حالياً، ابعت سؤالك تاني كمان شوية"}
 
-        # ==========================================
-        # 5. حفظ المحادثة في قاعدة البيانات
-        # ==========================================
         student_msg = StudentHistory(
             student_id=request.student_id,
             lesson_id=request.lesson_id,
