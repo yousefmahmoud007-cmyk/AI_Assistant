@@ -51,8 +51,8 @@ CREATE TABLE PERSONALITY (
 CREATE TABLE Students (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) NOT NULL,
-    student_id VARCHAR(255) NOT NULL UNIQUE
-    password VARCHAR(255) NOT NULL,
+    student_id VARCHAR(255) NOT NULL UNIQUE, -- تم إضافة الفاصلة هنا
+    password VARCHAR(255) NOT NULL -- تم إزالة الفاصلة من هنا
 );
 
 -- الجدول الوسيط الجديد للربط بين الطلاب وبنوك المعرفة (Many-to-Many)

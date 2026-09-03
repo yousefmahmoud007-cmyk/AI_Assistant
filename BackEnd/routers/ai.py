@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 from typing import Optional
 
 # حل مشكلة المسارات
@@ -14,31 +15,121 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
-# تم استدعاء KnowledgeBank هنا
-from db import get_session, Personality, Lesson, LessonPart, StudentHistory, Student, KnowledgeBank
+# استدعاء الجداول المطلوبة من db.py (تأكد من وجود Unit لعمليات الربط)
+from db import get_session, Personality, Lesson, LessonPart, StudentHistory, Student, KnowledgeBank, Unit
 from dotenv import load_dotenv
 
 load_dotenv()
-
 ai_router = APIRouter(prefix="/ai", tags=["AI Integration"])
 
-# إعداد المكتبة المستقرة
+# إعداد المكتبة
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
+# ==========================================
+# Pydantic Models
+# ==========================================
 class UserRequest(BaseModel):
     prompt: str
     lesson_id: Optional[int] = None
     student_id: str
     image: Optional[str] = None
 
+class StudentSignupRequest(BaseModel):
+    username: str
+    phone_number: str
+    password: str
+    knowledge_bank_id: int
 
+class StudentLoginRequest(BaseModel):
+    phone_number: str
+    password: str
+    knowledge_bank_id: int
+
+# ==========================================
+# Routes (تسجيل الدخول والإنشاء)
+# ==========================================
+@ai_router.post("/signup")
+async def student_signup(request: StudentSignupRequest, session: AsyncSession = Depends(get_session)):
+    try:
+        # فحص هل الطالب موجود مسبقاً (رقم الهاتف هو student_id)
+        stmt_check = select(Student).where(Student.student_id == request.phone_number)
+        res_check = await session.execute(stmt_check)
+        if res_check.scalars().first():
+            raise HTTPException(status_code=400, detail="رقم الهاتف مسجل مسبقاً")
+
+        # جلب بنك المعرفة (المدرس)
+        stmt_kb = select(KnowledgeBank).where(KnowledgeBank.id == request.knowledge_bank_id)
+        res_kb = await session.execute(stmt_kb)
+        kb = res_kb.scalars().first()
+
+        if not kb:
+            raise HTTPException(status_code=404, detail="كود المدرس (ID) غير صحيح")
+
+        # إنشاء الطالب وإضافته لبنك المعرفة (Many-to-Many)
+        new_student = Student(
+            student_id=request.phone_number,
+            username=request.username,
+            password=request.password # تأكد من إضافة هذا العمود في db.py وقاعدة البيانات
+        )
+        new_student.knowledge_banks.append(kb)
+        session.add(new_student)
+        await session.commit()
+
+        return {"message": "تم إنشاء الحساب بنجاح"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@ai_router.post("/login")
+async def student_login(request: StudentLoginRequest, session: AsyncSession = Depends(get_session)):
+    try:
+        # البحث عن الطالب بالهاتف والباسوورد مع جلب بنوك المعرفة المرتبطة به
+        stmt = select(Student).options(selectinload(Student.knowledge_banks)).where(
+            Student.student_id == request.phone_number,
+            Student.password == request.password
+        )
+        result = await session.execute(stmt)
+        student = result.scalars().first()
+
+        if not student:
+            raise HTTPException(status_code=401, detail="رقم الهاتف أو كلمة المرور غير صحيحة")
+
+        # التحقق من كود المدرس وإضافته إذا كان جديداً على الطالب
+        if request.knowledge_bank_id:
+            stmt_kb = select(KnowledgeBank).where(KnowledgeBank.id == request.knowledge_bank_id)
+            res_kb = await session.execute(stmt_kb)
+            kb = res_kb.scalars().first()
+
+            if not kb:
+                raise HTTPException(status_code=404, detail="كود المدرس غير صحيح")
+
+            # لو الطالب مش مسجل مع المدرس ده قبل كده، ضيفه (حفظ ID البنك الجديد)
+            if not any(b.id == kb.id for b in student.knowledge_banks):
+                student.knowledge_banks.append(kb)
+                await session.commit()
+
+        return {
+            "message": "تم تسجيل الدخول بنجاح",
+            "student_id": student.student_id,
+            "username": student.username
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==========================================
+# Routes (الشات والمساعد الذكي)
+# ==========================================
 @ai_router.get("/personality/{kb_id}")
 async def get_personality(kb_id: int, session: AsyncSession = Depends(get_session)):
     try:
         stmt = select(Personality).where(Personality.knowledge_bank_id == kb_id)
         result = await session.execute(stmt)
         personality = result.scalars().first()
-        
         if personality:
             return {
                 "name": personality.name,
@@ -48,11 +139,7 @@ async def get_personality(kb_id: int, session: AsyncSession = Depends(get_sessio
         return {"name": "المعلم الذكي", "description": "", "image_base64": None}
     except Exception as e:
         print(f"Error:{str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal Server Error: {str(e)}"
-        )
-
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {str(e)}")
 
 @ai_router.get("/history/sidebar/{student_id}")
 async def get_sidebar_history(student_id: str, session: AsyncSession = Depends(get_session)):
@@ -69,7 +156,6 @@ async def get_sidebar_history(student_id: str, session: AsyncSession = Depends(g
         return {"history": history_list}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @ai_router.get("/history/chat/{student_id}/{lesson_id}")
 async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSession = Depends(get_session)):
@@ -91,39 +177,34 @@ async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSessio
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @ai_router.post("/ask-ai/")
 async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_session)):
     try:
         # ==========================================
-        # 1. إعداد التعليمات (النظام + الآدمن) ديناميكياً
+        # 1. إعداد التعليمات (النظام + الآدمن) ديناميكياً بناءً على الدرس المفتوح
         # ==========================================
-        base_instruction = "أنت معلم ذكي ومحترف لمساعدة الطلاب." # قيمة افتراضية
+        base_instruction = "أنت معلم ذكي ومحترف لمساعدة الطلاب."
         admin_instruction = ""
-        
-        stmt_student = select(Student).where(Student.student_id == request.student_id)
-        result_student = await session.execute(stmt_student)
-        student = result_student.scalars().first()
 
-        if student and student.knowledge_bank_id:
-            # --- جلب التعليمات الخاصة بالبنك ---
-            stmt_bank = select(KnowledgeBank).where(KnowledgeBank.id == student.knowledge_bank_id)
+        # جلب البنك التابع له الدرس لمعرفة تعليمات المدرس المحددة
+        if request.lesson_id:
+            stmt_bank = select(KnowledgeBank).join(Unit).join(Lesson).where(Lesson.id == request.lesson_id)
             result_bank = await session.execute(stmt_bank)
             bank = result_bank.scalars().first()
-            
-            if bank and bank.instructions:
-                base_instruction = bank.instructions
 
-            # --- جلب الشخصية ---
-            stmt_pers = select(Personality).where(Personality.knowledge_bank_id == student.knowledge_bank_id)
-            result_pers = await session.execute(stmt_pers)
-            personality = result_pers.scalars().first()
-            
-            if personality:
-                name_part = f"اسمك هو '{personality.name}'." if personality.name else ""
-                desc_part = personality.description if personality.description else ""
-                admin_instruction = f"{name_part} {desc_part}"
-            
+            if bank:
+                if bank.instructions:
+                    base_instruction = bank.instructions
+                
+                # جلب الشخصية
+                stmt_pers = select(Personality).where(Personality.knowledge_bank_id == bank.id)
+                result_pers = await session.execute(stmt_pers)
+                personality = result_pers.scalars().first()
+                if personality:
+                    name_part = f"اسمك هو '{personality.name}'." if personality.name else ""
+                    desc_part = personality.description if personality.description else ""
+                    admin_instruction = f"{name_part} {desc_part}"
+
         final_system_instruction = f"{base_instruction}\n{admin_instruction}"
 
         # ==========================================
@@ -156,13 +237,9 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         # ==========================================
         # 4. الـ Model Fallbacks
         # ==========================================
-        models_to_try = [
-            'gemini-3.7-flash',
-            'gemini-3.6-flash',
-            'gemini-3.5-flash'
-        ]
-        
+        models_to_try = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']
         response_text = None
+
         for model_name in models_to_try:
             try:
                 custom_model = genai.GenerativeModel(
@@ -204,10 +281,9 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             message=response_text
         )
         session.add(ai_msg)
-
         await session.commit()
-        return {"response": response_text}
 
+        return {"response": response_text}
     except Exception as e:
         await session.rollback()
         print(f"Database/Server Error: {e}")
