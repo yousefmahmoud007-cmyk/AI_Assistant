@@ -1,10 +1,10 @@
+import uuid # أضفنا المكتبة دي لتوليد باسوورد عشوائي فريد
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-
 from db import get_session, KnowledgeBank, Unit, Lesson, LessonPart, Personality
 
 admin_router = APIRouter(prefix="/admin", tags=["Admin Panel"])
@@ -13,7 +13,7 @@ admin_router = APIRouter(prefix="/admin", tags=["Admin Panel"])
 # 1. قوالب البيانات (Pydantic Models)
 # ==========================================
 class LoginRequest(BaseModel):
-    username: str  # الواجهة ترسل الـ ID في حقل username
+    username: str 
     password: str
 
 class PartCreate(BaseModel):
@@ -45,12 +45,12 @@ class BulkUploadRequest(BaseModel):
     units: List[UnitCreateBulk]
 
 # ==========================================
-# 2. مسار تسجيل الدخول (حل مشكلة 404)
+# 2. مسار تسجيل الدخول 
 # ==========================================
 @admin_router.post("/login")
 async def login(request: LoginRequest, session: AsyncSession = Depends(get_session)):
     try:
-        kb_id = int(request.username) # تحويل المدخل إلى رقم لأن ID المدرس عبارة عن رقم
+        kb_id = int(request.username)
     except ValueError:
         raise HTTPException(status_code=401, detail="ID غير صحيح")
 
@@ -63,18 +63,16 @@ async def login(request: LoginRequest, session: AsyncSession = Depends(get_sessi
 
     if not bank:
         raise HTTPException(status_code=401, detail="ID أو كلمة المرور غير صحيحة")
-    
+
     return {"message": "تم تسجيل الدخول بنجاح", "id": bank.id}
 
-
 # ==========================================
-# 3. مسار رفع المنهج (مكتمل وسليم)
+# 3. مسار رفع المنهج (معدل لحل مشكلة الـ Unique Password)
 # ==========================================
 @admin_router.post("/bulk-upload/")
 async def upload_full_subject(payload: BulkUploadRequest, session: AsyncSession = Depends(get_session)):
     try:
         existing_bank = None
-        
         if payload.bank_id:
             bank_stmt = select(KnowledgeBank).options(
                 selectinload(KnowledgeBank.units).selectinload(Unit.lessons).selectinload(Lesson.lesson_parts),
@@ -85,7 +83,7 @@ async def upload_full_subject(payload: BulkUploadRequest, session: AsyncSession 
 
         if existing_bank:
             existing_bank.title = payload.knowledge_bank_title
-            
+
             # --- تحديث الشخصية ---
             if existing_bank.personalities:
                 p = existing_bank.personalities[0]
@@ -102,31 +100,31 @@ async def upload_full_subject(payload: BulkUploadRequest, session: AsyncSession 
             for old_unit in list(existing_bank.units):
                 if old_unit.id not in incoming_unit_ids:
                     await session.delete(old_unit)
-                    
+
             for unit_data in payload.units:
                 if unit_data.id:
                     current_unit = next((u for u in existing_bank.units if u.id == unit_data.id), None)
                     if current_unit:
                         current_unit.title = unit_data.title
                         await session.flush()
-                        
+
                         incoming_lesson_ids = [l.id for l in unit_data.lessons if l.id]
                         for old_lesson in list(current_unit.lessons):
                             if old_lesson.id not in incoming_lesson_ids:
                                 await session.delete(old_lesson)
-                                
+
                         for lesson_data in unit_data.lessons:
                             if lesson_data.id:
                                 current_lesson = next((l for l in current_unit.lessons if l.id == lesson_data.id), None)
                                 if current_lesson:
                                     current_lesson.title = lesson_data.title
                                     await session.flush()
-                                    
+
                                     incoming_part_ids = [p.id for p in lesson_data.parts if p.id]
                                     for old_part in list(current_lesson.lesson_parts):
                                         if old_part.id not in incoming_part_ids:
                                             await session.delete(old_part)
-                                            
+
                                     for part_data in lesson_data.parts:
                                         if part_data.id:
                                             current_part = next((p for p in current_lesson.lesson_parts if p.id == part_data.id), None)
@@ -156,18 +154,20 @@ async def upload_full_subject(payload: BulkUploadRequest, session: AsyncSession 
                         for part_data in lesson_data.parts:
                             new_part = LessonPart(title=part_data.title, lesson_content=part_data.lesson_content, example=part_data.example, question=part_data.question, lesson_id=new_lesson.id)
                             session.add(new_part)
-                            
+
             await session.commit()
             return {"message": "تم حفظ وتحديث المادة بنجاح!", "bank_id": existing_bank.id}
-            
+
         else:
-            new_bank = KnowledgeBank(title=payload.knowledge_bank_title, password="123") # وضع باسوورد افتراضي للإدمن الجديد
+            # إنشاء باسوورد عشوائي عشان نتفادى خطأ الـ Unique Constraint
+            random_pass = str(uuid.uuid4())[:8]
+            new_bank = KnowledgeBank(title=payload.knowledge_bank_title, password=random_pass)
             session.add(new_bank)
             await session.flush()
-            
+
             new_personality = Personality(name=payload.model_settings.name, description=payload.model_settings.description, image_base64=payload.model_settings.image_base64, knowledge_bank_id=new_bank.id)
             session.add(new_personality)
-            
+
             for unit_data in payload.units:
                 new_unit = Unit(title=unit_data.title, knowledge_bank_id=new_bank.id)
                 session.add(new_unit)
@@ -179,17 +179,17 @@ async def upload_full_subject(payload: BulkUploadRequest, session: AsyncSession 
                     for part_data in lesson_data.parts:
                         new_part = LessonPart(title=part_data.title, lesson_content=part_data.lesson_content, example=part_data.example, question=part_data.question, lesson_id=new_lesson.id)
                         session.add(new_part)
-                        
+
             await session.commit()
-            return {"message": "تم إنشاء وحفظ المادة بنجاح!", "bank_id": new_bank.id}
-            
+            # رجعنا الباسوورد العشوائي في الرد عشان لو الإدمن حابب يعرفه (اختياري)
+            return {"message": "تم إنشاء وحفظ المادة بنجاح!", "bank_id": new_bank.id, "generated_password": random_pass}
+
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء حفظ البيانات: {str(e)}")
 
-
 # ==========================================
-# 4. مسار جلب المنهج (معدل ليدعم Multi-Tenancy)
+# 4. مسار جلب المنهج 
 # ==========================================
 @admin_router.get("/knowledge-bank/{kb_id}")
 async def get_full_knowledge_bank(kb_id: int, session: AsyncSession = Depends(get_session)):
@@ -197,16 +197,14 @@ async def get_full_knowledge_bank(kb_id: int, session: AsyncSession = Depends(ge
         bank_stmt = select(KnowledgeBank).options(
             selectinload(KnowledgeBank.units).selectinload(Unit.lessons).selectinload(Lesson.lesson_parts),
             selectinload(KnowledgeBank.personalities)
-        ).where(KnowledgeBank.id == kb_id) # البحث بالـ ID المبعوث فقط
-        
+        ).where(KnowledgeBank.id == kb_id)
         bank_result = await session.execute(bank_stmt)
         knowledge_bank = bank_result.scalars().first()
-        
+
         if not knowledge_bank:
             return {"message": "لا توجد بيانات محفوظة بعد"}
-            
+
         personality = knowledge_bank.personalities[0] if knowledge_bank.personalities else None
-        
         response_data = {
             "id": knowledge_bank.id,
             "knowledge_bank_title": knowledge_bank.title,
@@ -217,7 +215,7 @@ async def get_full_knowledge_bank(kb_id: int, session: AsyncSession = Depends(ge
             },
             "units": []
         }
-        
+
         for unit in knowledge_bank.units:
             unit_data = {
                 "id": unit.id,
@@ -240,7 +238,7 @@ async def get_full_knowledge_bank(kb_id: int, session: AsyncSession = Depends(ge
                     })
                 unit_data["lessons"].append(lesson_data)
             response_data["units"].append(unit_data)
-            
+
         return response_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء استرجاع البيانات: {str(e)}")
