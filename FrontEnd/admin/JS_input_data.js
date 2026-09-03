@@ -28,7 +28,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // جلب بيانات الشخصية
     try {
         // ضفنا الـ adminId في آخر الرابط عشان السيرفر يعرف شخصية مين اللي هترجع
-        const aiResponse = await fetch(`https://aiassistant-production-88d9.up.railway.app/ai/personality/${adminId}`);
+        const aiResponse = await fetch(`https://aiassistant-production-214a.up.railway.app/ai/personality/${adminId}`);
         if (aiResponse.ok) {
             const aiData = await aiResponse.json();
             const modelNameEl = document.getElementById('modelName');
@@ -56,7 +56,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // جلب بيانات المنهج
     try {
         // ضفنا الـ adminId في آخر الرابط عشان السيرفر يرجع منهج المدرس ده بس
-        const adminResponse = await fetch(`https://aiassistant-production-88d9.up.railway.app/admin/knowledge-bank/${adminId}`);
+        const adminResponse = await fetch(`https://aiassistant-production-214a.up.railway.app/admin/knowledge-bank/${adminId}`);
         if (adminResponse.ok) {
             const adminData = await adminResponse.json();
             
@@ -443,7 +443,7 @@ if(document.getElementById('exportJsonBtn')) {
         btn.disabled = true;
         
         try {
-            const response = await fetch("https://aiassistant-production-88d9.up.railway.app/admin/bulk-upload/", {
+            const response = await fetch("https://aiassistant-production-214a.up.railway.app/admin/bulk-upload/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(finalData)
