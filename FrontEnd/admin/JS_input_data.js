@@ -462,10 +462,7 @@ if(document.getElementById('exportJsonBtn')) {
                 console.error("Server Error:", err);
             }
         } catch (error) {
-            // alert("خطأ في الاتصال بالخادم.");
-            const errorDetails = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || data.response);
-            appendMessage(`خطأ من الخادم: ${errorDetails}`, null, 'ai');
-            console.error(error);
+            alert("خطأ في الاتصال بالخادم.");
         } finally {
             btn.innerHTML = originalText;
             btn.disabled = false;
