@@ -6,7 +6,7 @@ const savedKbId = localStorage.getItem("knowledge_bank_id");
 
 // التوجيه لصفحة اللوجين لو مفيش بيانات
 if (!savedStudentId || !savedKbId) {
-    window.location.href = "../signup/index.html"; // warning: make sure this path is correct based on your project structure
+    window.location.href = "https://ai-assistant-iota-eight.vercel.app/signup/index.html"; // warning: make sure this path is correct based on your project structure
 }
 
 // تحديد العناصر من واجهة المستخدم (تم إزالة عناصر رفع الصور)

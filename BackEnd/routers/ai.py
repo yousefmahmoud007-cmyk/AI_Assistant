@@ -15,7 +15,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
-# استدعاء الجداول المطلوبة من db.py (تأكد من وجود Unit لعمليات الربط)
+# استدعاء الجداول المطلوبة من db.py
 from db import get_session, Personality, Lesson, LessonPart, StudentHistory, Student, KnowledgeBank, Unit
 from dotenv import load_dotenv
 
@@ -38,12 +38,12 @@ class StudentSignupRequest(BaseModel):
     username: str
     phone_number: str
     password: str
-    knowledge_bank_id: int
+    knowledge_bank_id: Optional[int] = None # تم التعديل لتكون اختيارية لإنشاء حساب عام
 
 class StudentLoginRequest(BaseModel):
     phone_number: str
     password: str
-    knowledge_bank_id: int
+    knowledge_bank_id: Optional[int] = None # يفضل جعلها اختيارية هنا أيضاً تحسباً لأي سيناريو
 
 # ==========================================
 # Routes (تسجيل الدخول والإنشاء)
@@ -57,21 +57,24 @@ async def student_signup(request: StudentSignupRequest, session: AsyncSession = 
         if res_check.scalars().first():
             raise HTTPException(status_code=400, detail="رقم الهاتف مسجل مسبقاً")
 
-        # جلب بنك المعرفة (المدرس)
-        stmt_kb = select(KnowledgeBank).where(KnowledgeBank.id == request.knowledge_bank_id)
-        res_kb = await session.execute(stmt_kb)
-        kb = res_kb.scalars().first()
-
-        if not kb:
-            raise HTTPException(status_code=404, detail="كود المدرس (ID) غير صحيح")
-
-        # إنشاء الطالب وإضافته لبنك المعرفة (Many-to-Many)
+        # إنشاء الطالب (حساب عام)
         new_student = Student(
             student_id=request.phone_number,
             username=request.username,
-            password=request.password # تأكد من إضافة هذا العمود في db.py وقاعدة البيانات
+            password=request.password 
         )
-        new_student.knowledge_banks.append(kb)
+
+        # لو تم إرسال كود المدرس، يتم ربط الطالب به
+        if request.knowledge_bank_id:
+            stmt_kb = select(KnowledgeBank).where(KnowledgeBank.id == request.knowledge_bank_id)
+            res_kb = await session.execute(stmt_kb)
+            kb = res_kb.scalars().first()
+            
+            if not kb:
+                raise HTTPException(status_code=404, detail="كود المدرس (ID) غير صحيح")
+            
+            new_student.knowledge_banks.append(kb)
+
         session.add(new_student)
         await session.commit()
 
@@ -96,7 +99,7 @@ async def student_login(request: StudentLoginRequest, session: AsyncSession = De
         if not student:
             raise HTTPException(status_code=401, detail="رقم الهاتف أو كلمة المرور غير صحيحة")
 
-        # التحقق من كود المدرس وإضافته إذا كان جديداً على الطالب
+        # التحقق من كود المدرس وإضافته إذا كان جديداً على الطالب ومبعوث في الـ Request
         if request.knowledge_bank_id:
             stmt_kb = select(KnowledgeBank).where(KnowledgeBank.id == request.knowledge_bank_id)
             res_kb = await session.execute(stmt_kb)
@@ -105,7 +108,7 @@ async def student_login(request: StudentLoginRequest, session: AsyncSession = De
             if not kb:
                 raise HTTPException(status_code=404, detail="كود المدرس غير صحيح")
 
-            # لو الطالب مش مسجل مع المدرس ده قبل كده، ضيفه (حفظ ID البنك الجديد)
+            # لو الطالب مش مسجل مع المدرس ده قبل كده، ضيفه
             if not any(b.id == kb.id for b in student.knowledge_banks):
                 student.knowledge_banks.append(kb)
                 await session.commit()
