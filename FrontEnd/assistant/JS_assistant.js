@@ -92,7 +92,10 @@ async function sendToBackend(messageText) {
             appendMessage(data.response, null, 'ai');
             loadSidebarHistory();
         } else {
-            appendMessage(`خطأ من الخادم: ${data.detail || data.response}`, null, 'ai');
+            // appendMessage(`خطأ من الخادم: ${data.detail || data.response}`, null, 'ai');
+            const errorDetails = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || data.response);
+            appendMessage(`خطأ من الخادم: ${errorDetails}`, null, 'ai');
+
         }
     } catch (error) {
         const loadingEl = document.getElementById(loadingId);

@@ -209,7 +209,9 @@ if(signInFormBtn){
                 }
             }
         } catch (error) {
-            showToast("خطأ في الاتصال بالخادم.", "error");
+            // showToast("خطأ في الاتصال بالخادم.", "error");
+            const errorDetails = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || data.response);
+            appendMessage(`خطأ من الخادم: ${errorDetails}`, null, 'ai');
         } finally {
             btn.innerHTML = originalText;
             btn.disabled = false;
