@@ -42,10 +42,8 @@ async def main():
     return {"message": "Hello World. API is running!"}
 
 # 5. تشغيل السيرفر
+
 if __name__ == "__main__":
-    # الحصول على المنفذ (Port) من منصة Railway أو استخدام 8000 عند التشغيل المحلي
+    # كده الكود هياخد البورت من Railway أوتوماتيك
     port = int(os.environ.get("PORT", 8000))
-    
-    # تغيير الـ Host إلى 0.0.0.0 لكي يعمل على Railway بنجاح
-    # تم إزالة reload=True لأنها غير مفضلة وتسبب مشاكل في بيئة الإنتاج (Production)
     uvicorn.run("main:app", host="0.0.0.0", port=port)
