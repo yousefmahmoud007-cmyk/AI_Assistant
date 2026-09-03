@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sliding Login/Signup</title>
+    <link rel="stylesheet" href="style_sign.css">
+</head>
+<body>
+
+    <div class="container" id="container">
+        
+        <!-- قسم إنشاء الحساب -->
+        <div class="form-container sign-up-container">
+            <form action="#" id="signUpForm">
+                <h2>Create Account</h2>
+                <input type="text" placeholder="User Name" id="username" />
+                <input type="tel" placeholder="Phone Number" id="phone" />
+                <input type="password" placeholder="Password" id="password" />
+                <button class="action-btn">Sign Up</button>
+            </form>
+        </div>
+
+        <!-- قسم تسجيل الدخول -->
+        <div class="form-container sign-in-container">
+            <form action="#" id="signInForm">
+                <h2>Login</h2>
+                <input type="tel" placeholder="Phone Number" id="signInPhone" />
+                <input type="password" placeholder="Password" id="signInPassword" />
+                <input type="number" placeholder="ID" id="signinKbId"/>
+                <button class="action-btn">Login</button>
+            </form>
+        </div>
+
+        <!-- الطبقة المتحركة (Overlay) -->
+        <div class="overlay-container">
+            <div class="overlay">
+                <div class="overlay-panel overlay-left">
+                    <h2>Welcome Back!</h2>
+                    <p>Already have an account?</p>
+                    <button class="ghost-btn" type="button" id="signIn">Login</button>
+                </div>
+                <div class="overlay-panel overlay-right">
+                    <h2>Welcome !</h2>
+                    <p>Don't have an account ?</p>
+                    <button class="ghost-btn" type="button" id="signUp">Signup</button>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <script src="JS_sign.js"></script>
+</body>
+</html>

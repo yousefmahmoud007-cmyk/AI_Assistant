@@ -1,4 +1,15 @@
-// تحديد العناصر من واجهة المستخدم
+// ==========================================
+// 0. حماية الصفحة (Auth Guard)
+// ==========================================
+const savedStudentId = localStorage.getItem("student_id");
+const savedKbId = localStorage.getItem("knowledge_bank_id");
+
+// التوجيه لصفحة اللوجين لو مفيش بيانات
+if (!savedStudentId || !savedKbId) {
+    window.location.href = "../signup/index.html"; // warning: make sure this path is correct based on your project structure
+}
+
+// تحديد العناصر من واجهة المستخدم (تم إزالة عناصر رفع الصور)
 const chatInput = document.getElementById('chatInput');
 const sendBtn = document.getElementById('sendBtn');
 const chatHistory = document.getElementById('chatHistory');
@@ -6,21 +17,14 @@ const openSidebarBtn = document.getElementById('openSidebar');
 const sidebar = document.getElementById('sidebar');
 const closeSidebarBtn = document.getElementById('closeSidebar');
 const newChatBtn = document.getElementById('newChatBtn');
-const uploadTriggerBtn = document.getElementById('uploadTriggerBtn');
-const imageInput = document.getElementById('imageInput');
-const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-const imagePreview = document.getElementById('imagePreview');
-const removeImageBtn = document.getElementById('removeImageBtn');
 const headerModelImage = document.getElementById('headerModelImage');
 
 // ==========================================
-// المتغيرات العامة (مع تثبيت القيم مؤقتاً)
+// المتغيرات العامة
 // ==========================================
 const API_BASE_URL = "https://aiassistant-production-88d9.up.railway.app";
-const CURRENT_KB_ID = 2;           // رقم المدرس (بنك المعرفة)
-const CURRENT_STUDENT_ID = "2";    // رقم الطالب (نص String بناءً على تعديل الباك إند الأخير)
-
-let currentImageBase64 = null;
+const CURRENT_KB_ID = savedKbId; 
+const CURRENT_STUDENT_ID = savedStudentId; 
 let activeLessonId = null;
 
 // ==========================================
@@ -30,7 +34,7 @@ function appendMessage(text, imageBase64, sender) {
     const messageElement = document.createElement('div');
     messageElement.classList.add(sender === 'student' ? 'message-student' : 'message-ai');
 
-    // إضافة الصورة إذا وجدت
+    // سبنا عرض الصورة هنا عشان لو فيه محادثات قديمة في الداتابيز كان فيها صور
     if (imageBase64) {
         const imgElement = document.createElement('img');
         imgElement.src = imageBase64;
@@ -38,11 +42,10 @@ function appendMessage(text, imageBase64, sender) {
         messageElement.appendChild(imgElement);
     }
 
-    // إضافة النص (مع استخدام marked لردود الذكاء الاصطناعي فقط)
     if (text) {
         const textElement = document.createElement('div');
-        if (sender === 'ai') {
-            textElement.innerHTML = marked.parse(text); 
+        if (sender === 'ai' && typeof marked !== 'undefined') {
+            textElement.innerHTML = marked.parse(text);
         } else {
             textElement.innerHTML = text.replace(/\n/g, "<br>");
         }
@@ -51,7 +54,6 @@ function appendMessage(text, imageBase64, sender) {
 
     chatHistory.appendChild(messageElement);
 
-    // التمرير لأسفل فقط لو الطالب هو اللي باعت
     if (sender === 'student') {
         chatHistory.scrollTop = chatHistory.scrollHeight;
     }
@@ -60,13 +62,12 @@ function appendMessage(text, imageBase64, sender) {
 // ==========================================
 // 2. إرسال الطلب لـ FastAPI
 // ==========================================
-async function sendToBackend(messageText, imageBase64) {
+async function sendToBackend(messageText) {
     const loadingId = "loading-" + Date.now();
     const loadingElement = document.createElement('div');
     loadingElement.id = loadingId;
     loadingElement.classList.add('message-ai', 'loading');
     loadingElement.textContent = "جاري التفكير...";
-    
     chatHistory.appendChild(loadingElement);
     chatHistory.scrollTop = chatHistory.scrollHeight;
 
@@ -77,23 +78,25 @@ async function sendToBackend(messageText, imageBase64) {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                prompt: messageText || "",
-                image: imageBase64,
+                prompt: messageText,
+                image: null, // تم إيقاف إرسال الصور
                 lesson_id: activeLessonId,
                 student_id: CURRENT_STUDENT_ID
             })
         });
+
         const data = await response.json();
         document.getElementById(loadingId).remove();
-        
+
         if (response.ok) {
             appendMessage(data.response, null, 'ai');
-            loadSidebarHistory(); // تحديث القائمة
+            loadSidebarHistory();
         } else {
             appendMessage(`خطأ من الخادم: ${data.detail || data.response}`, null, 'ai');
         }
     } catch (error) {
-        document.getElementById(loadingId).remove();
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) loadingEl.remove();
         appendMessage("حدث خطأ في الاتصال. تأكد من تشغيل خادم FastAPI.", null, 'ai');
     }
 }
@@ -103,25 +106,26 @@ async function sendToBackend(messageText, imageBase64) {
 // ==========================================
 function handleSend() {
     const messageText = chatInput.value.trim();
-    if (messageText === "" && !currentImageBase64) return;
-    
-    appendMessage(messageText, currentImageBase64, 'student');
-    sendToBackend(messageText, currentImageBase64);
+    if (messageText === "") return;
+
+    appendMessage(messageText, null, 'student'); // إرسال النص فقط
+    sendToBackend(messageText);
     
     chatInput.value = "";
-    if (currentImageBase64) removeImageBtn.click();
 }
 
-sendBtn.addEventListener('click', handleSend);
-chatInput.addEventListener('keypress', function(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        handleSend();
-    }
-});
+if(sendBtn) sendBtn.addEventListener('click', handleSend);
+if(chatInput) {
+    chatInput.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            handleSend();
+        }
+    });
+}
 
 // ==========================================
-// 4. أزرار الواجهة والقائمة والصور
+// 4. أزرار الواجهة والقائمة
 // ==========================================
 if (newChatBtn) {
     newChatBtn.addEventListener('click', () => {
@@ -131,28 +135,8 @@ if (newChatBtn) {
     });
 }
 
-openSidebarBtn.addEventListener('click', () => sidebar.classList.add('active'));
-closeSidebarBtn.addEventListener('click', () => sidebar.classList.remove('active'));
-uploadTriggerBtn.addEventListener('click', () => imageInput.click());
-
-imageInput.addEventListener('change', function(event) {
-    const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            currentImageBase64 = e.target.result;
-            imagePreview.src = currentImageBase64;
-            imagePreviewContainer.style.display = 'flex';
-        };
-        reader.readAsDataURL(file);
-    }
-});
-
-removeImageBtn.addEventListener('click', () => {
-    currentImageBase64 = null;
-    imageInput.value = '';
-    imagePreviewContainer.style.display = 'none';
-});
+if(openSidebarBtn) openSidebarBtn.addEventListener('click', () => sidebar.classList.add('active'));
+if(closeSidebarBtn) closeSidebarBtn.addEventListener('click', () => sidebar.classList.remove('active'));
 
 // ==========================================
 // 5. جلب المحادثات والبيانات السابقة
@@ -161,10 +145,10 @@ async function loadOldChat(lessonId) {
     try {
         activeLessonId = lessonId;
         chatHistory.innerHTML = '<p style="text-align:center; color:gray; margin-top: 20px;" id="loadingOldChat">جاري تحميل المحادثة...</p>';
-        
         const response = await fetch(`${API_BASE_URL}/ai/history/chat/${CURRENT_STUDENT_ID}/${lessonId}`);
-        document.getElementById('loadingOldChat').remove();
-        
+        const loadingEl = document.getElementById('loadingOldChat');
+        if(loadingEl) loadingEl.remove();
+
         if (response.ok) {
             const data = await response.json();
             if (data.messages.length === 0) {
@@ -182,23 +166,16 @@ async function loadOldChat(lessonId) {
 
 async function loadAIPersonality() {
     try {
-        // تم إضافة الـ ID للرابط لحل مشكلة 404
         const response = await fetch(`${API_BASE_URL}/ai/personality/${CURRENT_KB_ID}`);
         if (response.ok) {
             const data = await response.json();
             if (data.image_base64) {
-                headerModelImage.src = data.image_base64;
-            } else {
-                // ضبط مسار الصورة الافتراضية للرجوع مجلد للخلف
-                headerModelImage.src = "../logo.png";
+                if(headerModelImage) headerModelImage.src = data.image_base64;
             }
-            if (data.name) headerModelImage.title = data.name;
-        } else {
-            headerModelImage.src = "../logo.png";
+            if (data.name && headerModelImage) headerModelImage.title = data.name;
         }
     } catch (error) {
         console.error("تعذر جلب بيانات المساعد الذكي:", error);
-        headerModelImage.src = "../logo.png";
     }
 }
 
@@ -209,12 +186,13 @@ async function loadSidebarHistory() {
             const data = await response.json();
             const sidebarContainer = document.getElementById('chatHistorySidebar');
             if (!sidebarContainer) return;
-            
             sidebarContainer.innerHTML = '';
+            
             if (data.history.length === 0) {
                 sidebarContainer.innerHTML = '<p style="text-align:center; color:gray; font-size: 14px;">لا توجد محادثات سابقة</p>';
                 return;
             }
+
             data.history.forEach(item => {
                 const historyItem = document.createElement('div');
                 historyItem.className = 'history-btn-style p-2 mb-2 bg-light rounded shadow-sm text-center cursor-pointer';
@@ -230,6 +208,11 @@ async function loadSidebarHistory() {
     } catch (error) {
         console.error("تعذر جلب سجل المحادثات:", error);
     }
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = "../signup/index.html"; 
 }
 
 window.addEventListener('DOMContentLoaded', () => {

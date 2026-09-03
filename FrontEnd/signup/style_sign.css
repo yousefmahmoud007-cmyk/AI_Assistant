@@ -1,0 +1,259 @@
+/* استدعاء خطوط المنصة الأساسية */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700&display=swap');
+
+:root {
+    --primary-color: #41a7f0;
+    --primary-color-hover: #2589dc;
+    --primary-color-light: #ebf5fd;
+    --secondary-bg-color: #f8fafc;
+    --main-bg-color: #ffffff;
+    --main-text-color: #0f172a;
+    --secondary-text-color: #64748b;
+    --border-color: #e2e8f0;
+    --shadow-sm: 0 4px 14px rgba(65, 167, 240, 0.15);
+    --shadow-md: 0 10px 28px rgba(65, 167, 240, 0.06);
+    --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --font-heading: 'Cairo', sans-serif;
+    --font-body: 'Tajawal', sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: var(--secondary-bg-color);
+    color: var(--main-text-color);
+    font-family: var(--font-body);
+}
+
+/* الصندوق الرئيسي */
+.container {
+    background-color: var(--main-bg-color);
+    border-radius: 24px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+    width: 768px;
+    max-width: 100%;
+    min-height: 480px;
+}
+
+/* إعدادات حاويات النماذج (الفورم) */
+.form-container {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* تنسيق النماذج من الداخل */
+form {
+    background-color: var(--main-bg-color);
+    display: flex;
+    flex-direction: column;
+    padding: 0 50px;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+form h2 {
+    font-family: var(--font-heading);
+    color: var(--main-text-color);
+    font-size: 32px;
+    margin-bottom: 30px;
+    font-weight: 700;
+}
+
+form input {
+    background-color: var(--secondary-bg-color);
+    border: 1px solid var(--border-color);
+    padding: 12px 16px;
+    margin-bottom: 15px;
+    width: 100%;
+    border-radius: 12px;
+    outline: none;
+    font-family: var(--font-body);
+    color: var(--main-text-color);
+    transition: var(--transition-smooth);
+}
+
+form input::placeholder {
+    color: var(--secondary-text-color);
+}
+
+form input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(65, 167, 240, 0.15);
+    background-color: var(--main-bg-color);
+}
+
+.action-btn {
+    border: none;
+    background-color: var(--primary-color);
+    color: #fff;
+    font-family: var(--font-heading);
+    font-size: 16px;
+    font-weight: 600;
+    padding: 12px 45px;
+    border-radius: 999px;
+    cursor: pointer;
+    margin-top: 10px;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-smooth);
+}
+
+.action-btn:hover {
+    background-color: var(--primary-color-hover);
+    transform: translateY(-2px);
+}
+
+/* حاوية تسجيل الدخول (موجودة على اليسار) */
+.sign-in-container {
+    left: 0;
+    width: 50%;
+    z-index: 2;
+}
+
+/* حاوية إنشاء الحساب (مخفية في البداية تحت الطبقة) */
+.sign-up-container {
+    left: 0;
+    width: 50%;
+    opacity: 0;
+    z-index: 1;
+}
+
+/* ------------------------------------------- */
+/* إعدادات الطبقة المتحركة (Overlay) */
+/* ------------------------------------------- */
+
+.overlay-container {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 50%;
+    height: 100%;
+    overflow: hidden;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+}
+
+.overlay {
+    background: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color-hover) 100%);
+    color: #fff;
+    position: relative;
+    left: -100%;
+    height: 100%;
+    width: 200%;
+    transform: translateX(0);
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.overlay-panel {
+    position: absolute;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0 40px;
+    height: 100%;
+    width: 50%;
+    text-align: center;
+    transform: translateX(0);
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.overlay-panel h2 {
+    font-family: var(--font-heading);
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+.overlay-panel p {
+    font-family: var(--font-body);
+    font-size: 16px;
+    margin-bottom: 25px;
+    line-height: 1.6;
+}
+
+/* زر الطبقة المتحركة */
+.ghost-btn {
+    background-color: transparent;
+    border: 2px solid #ffffff;
+    color: #ffffff;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    padding: 10px 35px;
+    font-size: 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.ghost-btn:hover {
+    background-color: #ffffff;
+    color: var(--primary-color);
+}
+
+.overlay-left {
+    transform: translateX(-20%);
+}
+
+.overlay-right {
+    right: 0;
+    transform: translateX(0);
+}
+
+/* ------------------------------------------- */
+/* حركات الأنميشن عند الضغط (Classes Toggled via JS) */
+/* ------------------------------------------- */
+
+.container.right-panel-active .sign-in-container {
+    transform: translateX(100%);
+}
+
+.container.right-panel-active .sign-up-container {
+    transform: translateX(100%);
+    opacity: 1;
+    z-index: 5;
+    animation: show 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.container.right-panel-active .overlay-container {
+    transform: translateX(-100%);
+}
+
+.container.right-panel-active .overlay {
+    transform: translateX(50%);
+}
+
+.container.right-panel-active .overlay-left {
+    transform: translateX(0);
+}
+
+.container.right-panel-active .overlay-right {
+    transform: translateX(20%);
+}
+
+@keyframes show {
+    0%, 49.99% {
+        opacity: 0;
+        z-index: 1;
+    }
+    50%, 100% {
+        opacity: 1;
+        z-index: 5;
+    }
+}
