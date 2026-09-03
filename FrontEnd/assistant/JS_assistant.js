@@ -22,7 +22,7 @@ const headerModelImage = document.getElementById('headerModelImage');
 // ==========================================
 // المتغيرات العامة
 // ==========================================
-const API_BASE_URL = "https://aiassistant-production-88d9.up.railway.app";
+const API_BASE_URL = "aiassistant-production-214a.up.railway.app";
 const CURRENT_KB_ID = savedKbId; 
 const CURRENT_STUDENT_ID = savedStudentId; 
 let activeLessonId = null;

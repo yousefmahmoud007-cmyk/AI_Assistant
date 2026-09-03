@@ -45,7 +45,7 @@ signInButton.addEventListener('click', () => {
     container.classList.remove('right-panel-active');
 });
 
-const API_BASE_URL = "https://aiassistant-production-88d9.up.railway.app";
+const API_BASE_URL = "aiassistant-production-214a.up.railway.app";
 
 // ==========================================
 // 3. التحقق من الحقول عند مغادرتها (On Blur Validation)
