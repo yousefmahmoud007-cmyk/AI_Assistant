@@ -120,8 +120,9 @@ class Student(Base):
 
 class StudentHistory(Base):
     __tablename__ = "student_history"
-
+    
     id = Column(Integer, primary_key=True, autoincrement=True)
+    # التأكد من مطابقة النوع تماماً ليكون String (VARCHAR) كما هو في قاعدة البيانات
     student_id = Column(String(255), ForeignKey("students.student_id", ondelete="CASCADE"), nullable=True)
     lesson_id = Column(Integer, ForeignKey("lessons.id", ondelete="CASCADE"), nullable=True)
     sender = Column(String(50), nullable=False)
@@ -129,7 +130,7 @@ class StudentHistory(Base):
     image_base64 = Column(Text, nullable=True)
     timestamp = Column(TIMESTAMP, server_default=func.now())
     
-    student = relationship("Student", back_populates="student_history")
+    student = relationship("Student", back_populates="student_history", foreign_keys=[student_id])
     lesson = relationship("Lesson")
 
 # =========================================================
