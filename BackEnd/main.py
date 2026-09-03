@@ -25,12 +25,16 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.vercel\.app",  # بيسمح لأي رابط ينتهي بـ vercel.app
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # 4. دمج المسارات (Routers) في التطبيق الأساسي
 app.include_router(admin_router)
