@@ -68,12 +68,11 @@ function validateFieldOnBlur(inputElement, errorMessage) {
 const signupUsername = document.getElementById('username');
 const signupPhone = document.getElementById('phone');
 const signupPassword = document.getElementById('password');
-const signupKbId = document.getElementById('signupKbId');
+// تم إزالة signupKbId من التحقق الإجباري في إنشاء الحساب
 
 validateFieldOnBlur(signupUsername, "يرجى كتابة اسم المستخدم");
 validateFieldOnBlur(signupPhone, "يرجى كتابة رقم الهاتف");
 validateFieldOnBlur(signupPassword, "يرجى كتابة كلمة المرور");
-validateFieldOnBlur(signupKbId, "يرجى إدخال كود المدرس (ID)");
 
 const loginUsername = document.getElementById('signInPhone');
 const loginPassword = document.getElementById('signInPassword');
@@ -93,22 +92,21 @@ if(signUpFormBtn){
         const usernameEl = document.getElementById('username');
         const phoneEl = document.getElementById('phone');
         const passwordEl = document.getElementById('password');
-        const kbIdEl = document.getElementById('signupKbId');
+        const kbIdEl = document.getElementById('signupKbId'); // حتى لو مش موجود في HTML مش هيعمل مشكلة
         const btn = signUpFormBtn.querySelector('button');
 
         const username = usernameEl ? usernameEl.value.trim() : '';
         const phone = phoneEl ? phoneEl.value.trim() : '';
         const password = passwordEl ? passwordEl.value.trim() : '';
+        // جلب الـ ID لو موجود، ولو مش موجود هيكون null
         const kbId = kbIdEl && kbIdEl.value.trim() !== '' ? parseInt(kbIdEl.value.trim()) : null;
 
         if (!/^\d{11}$/.test(phone)) {
             showToast("رقم الهاتف يجب أن يتكون من 11 رقماً", "error");
             return;
         }
-        if (!kbId) {
-            showToast("يرجى إدخال كود المدرس (ID)", "error");
-            return;
-        }
+
+        // تم حذف كود (if (!kbId) { showToast... }) من هنا نهائياً ✔️
 
         const originalText = btn.innerHTML;
         btn.innerHTML = "جاري الإنشاء...";
@@ -119,7 +117,7 @@ if(signUpFormBtn){
                 username: username,
                 phone_number: phone,
                 password: password,
-                knowledge_bank_id: kbId
+                knowledge_bank_id: kbId 
             };
             const response = await fetch(`${API_BASE_URL}/ai/signup`, {
                 method: "POST",
@@ -167,6 +165,8 @@ if(signInFormBtn){
             showToast("رقم الهاتف يجب أن يتكون من 11 رقماً", "error");
             return;
         }
+        
+        // هنا سيبنا التحقق بتاع تسجيل الدخول عشان الطالب يقدر يدخل على مدرس معين
         if (!kbId) {
             showToast("يرجى إدخال كود المدرس (ID)", "error");
             return;
