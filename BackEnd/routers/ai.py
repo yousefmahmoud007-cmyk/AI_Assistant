@@ -229,7 +229,7 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             contents.append({"mime_type": mime_type, "data": image_bytes})
 
         # 5. استدعاء النموذج مع التبديل التلقائي عند الخطأ أو الضغط
-        models_to_try = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+        models_to_try = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']
         response_text = None
 
         for model_name in models_to_try:
