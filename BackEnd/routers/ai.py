@@ -2,13 +2,15 @@ import os
 import sys
 import base64
 import asyncio
+from typing import Optional
+
 import google.generativeai as genai
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from typing import Optional
+from dotenv import load_dotenv
 
 # حل مشكلة المسارات
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,13 +18,22 @@ if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
 # استدعاء الجداول المطلوبة من db.py
-from db import get_session, Personality, Lesson, LessonPart, StudentHistory, Student, KnowledgeBank, Unit
-from dotenv import load_dotenv
+from db import (
+    get_session,
+    Personality,
+    Lesson,
+    LessonPart,
+    StudentHistory,
+    Student,
+    KnowledgeBank,
+    Unit
+)
 
 load_dotenv()
+
 ai_router = APIRouter(prefix="/ai", tags=["AI Integration"])
 
-# إعداد المكتبة
+# إعداد مكتبة الذكاء الاصطناعي
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # ==========================================
@@ -30,9 +41,10 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 # ==========================================
 class UserRequest(BaseModel):
     prompt: str
-    lesson_id: Optional[int] = None
-    student_id: str
     image: Optional[str] = None
+    lesson_id: Optional[int] = None
+    knowledge_bank_id: int  # إلزامي لربط السؤال بالمادة الصحيحة ومنع تداخل المناهج
+    student_id: str
 
 class StudentSignupRequest(BaseModel):
     username: str
@@ -59,22 +71,21 @@ async def student_signup(request: StudentSignupRequest, session: AsyncSession = 
         new_student = Student(
             student_id=request.phone_number,
             username=request.username,
-            password=request.password 
+            password=request.password
         )
 
         if request.knowledge_bank_id:
             stmt_kb = select(KnowledgeBank).where(KnowledgeBank.id == request.knowledge_bank_id)
             res_kb = await session.execute(stmt_kb)
             kb = res_kb.scalars().first()
-            
             if not kb:
                 raise HTTPException(status_code=404, detail="كود المدرس (ID) غير صحيح")
-            
             new_student.knowledge_banks.append(kb)
 
         session.add(new_student)
         await session.commit()
         return {"message": "تم إنشاء الحساب بنجاح"}
+
     except HTTPException:
         raise
     except Exception as e:
@@ -84,9 +95,13 @@ async def student_signup(request: StudentSignupRequest, session: AsyncSession = 
 @ai_router.post("/login")
 async def student_login(request: StudentLoginRequest, session: AsyncSession = Depends(get_session)):
     try:
-        stmt = select(Student).options(selectinload(Student.knowledge_banks)).where(
-            Student.student_id == request.phone_number,
-            Student.password == request.password
+        stmt = (
+            select(Student)
+            .options(selectinload(Student.knowledge_banks))
+            .where(
+                Student.student_id == request.phone_number,
+                Student.password == request.password
+            )
         )
         result = await session.execute(stmt)
         student = result.scalars().first()
@@ -98,7 +113,6 @@ async def student_login(request: StudentLoginRequest, session: AsyncSession = De
             stmt_kb = select(KnowledgeBank).where(KnowledgeBank.id == request.knowledge_bank_id)
             res_kb = await session.execute(stmt_kb)
             kb = res_kb.scalars().first()
-
             if not kb:
                 raise HTTPException(status_code=404, detail="كود المدرس غير صحيح")
 
@@ -111,6 +125,7 @@ async def student_login(request: StudentLoginRequest, session: AsyncSession = De
             "student_id": student.student_id,
             "username": student.username
         }
+
     except HTTPException:
         raise
     except Exception as e:
@@ -126,6 +141,7 @@ async def get_personality(kb_id: int, session: AsyncSession = Depends(get_sessio
         stmt = select(Personality).where(Personality.knowledge_bank_id == kb_id)
         result = await session.execute(stmt)
         personality = result.scalars().first()
+
         if personality:
             return {
                 "name": personality.name,
@@ -133,43 +149,63 @@ async def get_personality(kb_id: int, session: AsyncSession = Depends(get_sessio
                 "image_base64": personality.image_base64
             }
         return {"name": "المعلم الذكي", "description": "", "image_base64": None}
-    except Exception as e:
-        print(f"Error:{str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {str(e)}")
 
-@ai_router.get("/history/sidebar/{student_id}")
-async def get_sidebar_history(student_id: str, session: AsyncSession = Depends(get_session)):
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Server Error: {str(e)}"
+        )
+
+@ai_router.get("/history/sidebar/{student_id}/{kb_id}")
+async def get_sidebar_history(student_id: str, kb_id: int, session: AsyncSession = Depends(get_session)):
     try:
-        stmt = select(Lesson).join(StudentHistory).where(StudentHistory.student_id == student_id).distinct()
+        # جلب محادثات الدروس الخاصة بهذه المادة حصراً لمنع تسريب مواد أخرى
+        stmt = (
+            select(Lesson)
+            .join(StudentHistory, StudentHistory.lesson_id == Lesson.id)
+            .join(Unit, Lesson.unit_id == Unit.id)
+            .where(
+                StudentHistory.student_id == student_id,
+                Unit.knowledge_bank_id == kb_id
+            )
+            .distinct()
+        )
         result = await session.execute(stmt)
         lessons = result.scalars().all()
-        history_list = []
-        for lesson in lessons:
-            history_list.append({
-                "lesson_id": lesson.id,
-                "title": f"محادثة: {lesson.title}"
-            })
+
+        history_list = [
+            {"lesson_id": lesson.id, "title": f"محادثة: {lesson.title}"}
+            for lesson in lessons
+        ]
         return {"history": history_list}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @ai_router.get("/history/chat/{student_id}/{lesson_id}")
 async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSession = Depends(get_session)):
     try:
-        stmt = select(StudentHistory).where(
-            StudentHistory.lesson_id == lesson_id,
-            StudentHistory.student_id == student_id
-        ).order_by(StudentHistory.id)
+        stmt = (
+            select(StudentHistory)
+            .where(
+                StudentHistory.lesson_id == lesson_id,
+                StudentHistory.student_id == student_id
+            )
+            .order_by(StudentHistory.id)
+        )
         result = await session.execute(stmt)
         messages = result.scalars().all()
-        chat_data = []
-        for msg in messages:
-            chat_data.append({
+
+        chat_data = [
+            {
                 "sender": msg.sender,
                 "message": msg.message,
                 "image_base64": msg.image_base64
-            })
+            }
+            for msg in messages
+        ]
         return {"messages": chat_data}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -179,31 +215,40 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         base_instruction = ""
         admin_instruction = ""
 
-        # 1. جلب التعليمات والشخصية بالكامل من قاعدة البيانات
-        if request.lesson_id:
-            stmt_bank = select(KnowledgeBank).join(Unit).join(Lesson).where(Lesson.id == request.lesson_id)
-            result_bank = await session.execute(stmt_bank)
-            bank = result_bank.scalars().first()
+        # 1. جلب بنك المادة الحالي حصراً لمنع خلط المواد والتعليمات
+        stmt_bank = select(KnowledgeBank).where(KnowledgeBank.id == request.knowledge_bank_id)
+        result_bank = await session.execute(stmt_bank)
+        bank = result_bank.scalars().first()
 
-            if bank:
-                if bank.instructions:
-                    base_instruction = bank.instructions
+        if not bank:
+            return {"response": "خطأ: مادة غير صالحة أو غير مسجلة."}
 
-                stmt_pers = select(Personality).where(Personality.knowledge_bank_id == bank.id)
-                result_pers = await session.execute(stmt_pers)
-                personality = result_pers.scalars().first()
+        if bank.instructions:
+            base_instruction = bank.instructions
 
-                if personality:
-                    name_part = f"اسمك هو '{personality.name}'." if personality.name else ""
-                    desc_part = personality.description if personality.description else ""
-                    admin_instruction = f"{name_part} {desc_part}".strip()
+        stmt_pers = select(Personality).where(Personality.knowledge_bank_id == bank.id)
+        result_pers = await session.execute(stmt_pers)
+        personality = result_pers.scalars().first()
+
+        if personality:
+            name_part = f"اسمك هو '{personality.name}'." if personality.name else ""
+            desc_part = personality.description if personality.description else ""
+            admin_instruction = f"{name_part} {desc_part}".strip()
 
         final_system_instruction = f"{base_instruction}\n{admin_instruction}".strip()
 
-        # 2. جلب محتوى الدرس وتنظيمه كمرجع مباشر دون جمل تضعف اعتماده
+        # 2. جلب محتوى الدرس مع التحقق الصارم من انتمائه لذات المادة (Knowledge Bank)
         context = ""
         if request.lesson_id:
-            stmt = select(LessonPart).where(LessonPart.lesson_id == request.lesson_id)
+            stmt = (
+                select(LessonPart)
+                .join(Lesson, LessonPart.lesson_id == Lesson.id)
+                .join(Unit, Lesson.unit_id == Unit.id)
+                .where(
+                    LessonPart.lesson_id == request.lesson_id,
+                    Unit.knowledge_bank_id == request.knowledge_bank_id
+                )
+            )
             result_parts = await session.execute(stmt)
             parts = result_parts.scalars().all()
 
@@ -221,14 +266,14 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
         full_prompt = f"{context}سؤال الطالب: {request.prompt}".strip()
         contents = [full_prompt]
 
-        # 4. معالجة الصورة إن وُجدت
+        # معالجة الصورة إن وُجدت
         if request.image:
             image_data_str = request.image.split(",")[1] if "," in request.image else request.image
             image_bytes = base64.b64decode(image_data_str)
             mime_type = "image/jpeg" if ("jpeg" in request.image or "jpg" in request.image) else "image/png"
             contents.append({"mime_type": mime_type, "data": image_bytes})
 
-        # 5. استدعاء النموذج مع التبديل التلقائي عند الخطأ أو الضغط
+        # 4. تنفيذ الطلب عبر الموديلات المطلوبة
         models_to_try = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']
         response_text = None
 
@@ -244,17 +289,14 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
                 )
                 response_text = response.text
                 break
-            except asyncio.TimeoutError:
-                print(f"الموديل {model_name} أخذ وقتاً طويلاً (Timeout)، جاري تجربة التالي...")
-                continue
             except Exception as e:
-                print(f"فشل الموديل {model_name} بسبب: {e}")
+                print(f"فشل الموديل {model_name}: {e}")
                 continue
 
         if not response_text:
             return {"response": "معلش يا بطل، فيه ضغط على السيستم حالياً. ابعت سؤالك تاني كمان شوية."}
 
-        # 6. حفظ المحادثة في قاعدة البيانات
+        # 5. حفظ سجل المحادثة
         student_msg = StudentHistory(
             student_id=request.student_id,
             lesson_id=request.lesson_id,

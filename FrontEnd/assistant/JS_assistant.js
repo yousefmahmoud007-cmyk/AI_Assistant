@@ -4,9 +4,8 @@
 const savedStudentId = localStorage.getItem("student_id");
 const savedKbId = localStorage.getItem("knowledge_bank_id");
 
-// التوجيه لصفحة اللوجين لو مفيش بيانات
 if (!savedStudentId || !savedKbId) {
-    window.location.href = "https://ai-assistant-iota-eight.vercel.app/signup/index.html"; 
+    window.location.href = "https://ai-assistant-iota-eight.vercel.app/signup/index.html";
 }
 
 // تحديد العناصر من واجهة المستخدم
@@ -19,7 +18,7 @@ const closeSidebarBtn = document.getElementById('closeSidebar');
 const newChatBtn = document.getElementById('newChatBtn');
 const headerModelImage = document.getElementById('headerModelImage');
 
-// [إضافة] تحديد عناصر رفع ومعاينة الصور الموجودة في الـ HTML
+// عناصر رفع ومعاينة الصور
 const uploadTriggerBtn = document.getElementById('uploadTriggerBtn');
 const imageInput = document.getElementById('imageInput');
 const imagePreviewContainer = document.getElementById('imagePreviewContainer');
@@ -33,10 +32,10 @@ const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app";
 const CURRENT_KB_ID = savedKbId;
 const CURRENT_STUDENT_ID = savedStudentId;
 let activeLessonId = null;
-let currentImageBase64 = null; // [إضافة] متغير لحفظ بيانات الصورة المرفوعة
+let currentImageBase64 = null;
 
 // ==========================================
-// [إضافة] دالة تشغيل KaTeX لتصيير المعادلات والرموز
+// دالة تشغيل KaTeX
 // ==========================================
 function renderLatexEquations(element) {
     if (typeof renderMathInElement === 'function') {
@@ -50,7 +49,6 @@ function renderLatexEquations(element) {
             throwOnError: false
         });
     } else {
-        // في حال تأخر تحميل مكتبة KaTeX بسبب خاصية defer
         window.addEventListener('load', () => renderLatexEquations(element), { once: true });
     }
 }
@@ -58,7 +56,7 @@ function renderLatexEquations(element) {
 // ==========================================
 // 1. نظام إضافة وعرض الرسائل
 // ==========================================
-function appendMessage(text, imageBase64, sender) {
+function appendMessage(text, imageBase64, sender, shouldScroll = true) {
     const messageElement = document.createElement('div');
     messageElement.classList.add(sender === 'student' ? 'message-student' : 'message-ai');
 
@@ -76,24 +74,23 @@ function appendMessage(text, imageBase64, sender) {
         } else {
             textElement.innerHTML = text.replace(/\n/g, "<br>");
         }
-        
-        // [إضافة] تشغيل معالجة KaTeX داخل نص الرسالة
         renderLatexEquations(textElement);
-        // تشغيل تصيير المخططات الرسومية فوراً ككتلة صورة
-        if (window.mermaid) {
-            mermaid.run({
-                nodes: textElement.querySelectorAll('.language-mermaid')
-            });
-        }
         messageElement.appendChild(textElement);
     }
 
     chatHistory.appendChild(messageElement);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
+
+    if (shouldScroll) {
+        if (sender === 'student') {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        } else {
+            messageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
 }
 
 // ==========================================
-// 2. إرسال الطلب لـ FastAPI
+// 2. إرسال الطلب لـ FastAPI (تم تحديثه بإرسال knowledge_bank_id)
 // ==========================================
 async function sendToBackend(messageText, imageToSend = null) {
     const loadingId = "loading-" + Date.now();
@@ -112,8 +109,9 @@ async function sendToBackend(messageText, imageToSend = null) {
             },
             body: JSON.stringify({
                 prompt: messageText,
-                image: imageToSend, // يرسل كود الصورة إن وجد أو null
+                image: imageToSend,
                 lesson_id: activeLessonId,
+                knowledge_bank_id: parseInt(CURRENT_KB_ID), // إرسال البنك لحمايته من تداخل المواد
                 student_id: CURRENT_STUDENT_ID
             })
         });
@@ -123,15 +121,15 @@ async function sendToBackend(messageText, imageToSend = null) {
         if (loader) loader.remove();
 
         if (response.ok) {
-            appendMessage(data.response, null, 'ai');
+            appendMessage(data.response, null, 'ai', true);
             loadSidebarHistory();
         } else {
-            appendMessage(`خطأ من الخادم: ${data.detail || data.response}`, null, 'ai');
+            appendMessage(`خطأ من الخادم: ${data.detail || data.response}`, null, 'ai', true);
         }
     } catch (error) {
         const loadingEl = document.getElementById(loadingId);
         if (loadingEl) loadingEl.remove();
-        appendMessage("حدث خطأ في الاتصال. تأكد من تشغيل خادم FastAPI.", null, 'ai');
+        appendMessage("حدث خطأ في الاتصال. تأكد من تشغيل خادم FastAPI.", null, 'ai', true);
     }
 }
 
@@ -150,14 +148,13 @@ function handleSend() {
     if (messageText === "" && !currentImageBase64) return;
 
     const imageToSend = currentImageBase64;
-    appendMessage(messageText, imageToSend, 'student');
+    appendMessage(messageText, imageToSend, 'student', true);
     sendToBackend(messageText, imageToSend);
 
     chatInput.value = "";
     clearImagePreview();
 }
 
-// أحداث إرسال الرسائل
 if (sendBtn) sendBtn.addEventListener('click', handleSend);
 if (chatInput) {
     chatInput.addEventListener('keypress', function(event) {
@@ -168,7 +165,6 @@ if (chatInput) {
     });
 }
 
-// [إضافة] أحداث اختيار ومعاينة وحذف الصور
 if (uploadTriggerBtn && imageInput) {
     uploadTriggerBtn.addEventListener('click', () => imageInput.click());
 }
@@ -198,7 +194,7 @@ if (removeImageBtn) {
 if (newChatBtn) {
     newChatBtn.addEventListener('click', () => {
         chatHistory.innerHTML = '<div class="message-ai">مرحبا! كيف يمكنني مساعدتك اليوم؟</div>';
-        activeLessonId = 1;
+        activeLessonId = null; // ضبط القيمة كـ null ليعمل الشات على نطاق المادة ككل
         sidebar.classList.remove('active');
         clearImagePreview();
     });
@@ -214,7 +210,7 @@ async function loadOldChat(lessonId) {
     try {
         activeLessonId = lessonId;
         chatHistory.innerHTML = '<p style="text-align:center; color:gray; margin-top: 20px;" id="loadingOldChat">جاري تحميل المحادثة...</p>';
-        
+
         const response = await fetch(`${API_BASE_URL}/ai/history/chat/${CURRENT_STUDENT_ID}/${lessonId}`);
         const loadingEl = document.getElementById('loadingOldChat');
         if (loadingEl) loadingEl.remove();
@@ -225,9 +221,11 @@ async function loadOldChat(lessonId) {
                 chatHistory.innerHTML = '<p style="text-align:center; color:gray;">لا توجد رسائل سابقة.</p>';
                 return;
             }
+            chatHistory.innerHTML = '';
             data.messages.forEach(msg => {
-                appendMessage(msg.message, msg.image_base64, msg.sender);
+                appendMessage(msg.message, msg.image_base64, msg.sender, false);
             });
+            chatHistory.scrollTop = chatHistory.scrollHeight;
         }
     } catch (error) {
         chatHistory.innerHTML = '<p style="text-align:center; color:red;">خطأ في جلب المحادثة.</p>';
@@ -239,9 +237,7 @@ async function loadAIPersonality() {
         const response = await fetch(`${API_BASE_URL}/ai/personality/${CURRENT_KB_ID}`);
         if (response.ok) {
             const data = await response.json();
-            if (data.image_base64) {
-                if (headerModelImage) headerModelImage.src = data.image_base64;
-            }
+            if (data.image_base64 && headerModelImage) headerModelImage.src = data.image_base64;
             if (data.name && headerModelImage) headerModelImage.title = data.name;
         }
     } catch (error) {
@@ -288,6 +284,5 @@ function logout() {
 window.addEventListener('DOMContentLoaded', () => {
     loadAIPersonality();
     loadSidebarHistory();
-    // تصيير أي معادلات موجودة في رسالة الترحيب الأولى إن وجدت
     renderLatexEquations(chatHistory);
 });
