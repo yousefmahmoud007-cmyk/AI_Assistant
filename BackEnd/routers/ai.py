@@ -176,9 +176,10 @@ async def get_chat_history(student_id: str, lesson_id: int, session: AsyncSessio
 @ai_router.post("/ask-ai/")
 async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_session)):
     try:
-        base_instruction = "أنت معلم ذكي ومحترف لمساعدة الطلاب."
+        base_instruction = ""
         admin_instruction = ""
 
+        # 1. جلب التعليمات والشخصية بالكامل من قاعدة البيانات
         if request.lesson_id:
             stmt_bank = select(KnowledgeBank).join(Unit).join(Lesson).where(Lesson.id == request.lesson_id)
             result_bank = await session.execute(stmt_bank)
@@ -187,46 +188,55 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             if bank:
                 if bank.instructions:
                     base_instruction = bank.instructions
-                
+
                 stmt_pers = select(Personality).where(Personality.knowledge_bank_id == bank.id)
                 result_pers = await session.execute(stmt_pers)
                 personality = result_pers.scalars().first()
+
                 if personality:
                     name_part = f"اسمك هو '{personality.name}'." if personality.name else ""
                     desc_part = personality.description if personality.description else ""
-                    admin_instruction = f"{name_part} {desc_part}"
+                    admin_instruction = f"{name_part} {desc_part}".strip()
 
-        final_system_instruction = f"{base_instruction}\n{admin_instruction}"
+        final_system_instruction = f"{base_instruction}\n{admin_instruction}".strip()
 
+        # 2. جلب محتوى الدرس وتنظيمه كمرجع مباشر دون جمل تضعف اعتماده
         context = ""
         if request.lesson_id:
             stmt = select(LessonPart).where(LessonPart.lesson_id == request.lesson_id)
             result_parts = await session.execute(stmt)
             parts = result_parts.scalars().all()
-            if parts:
-                context = "إليك محتوى الدرس (استخدمه للإجابة إن لزم الأمر):\n\n"
-                for part in parts:
-                    context += f"- {part.title}:\n{part.lesson_content}\n"
-                    if part.example:
-                        context += f"أمثلة: {part.example}\n"
 
-        full_prompt = f"{context}\n\nسؤال الطالب: {request.prompt}"
+            if parts:
+                context_parts = ["=== محتوى الدرس المعتمد ==="]
+                for part in parts:
+                    part_text = f"\n- {part.title}:\n{part.lesson_content}"
+                    if part.example:
+                        part_text += f"\nأمثلة: {part.example}"
+                    context_parts.append(part_text)
+                context_parts.append("\n========================\n\n")
+                context = "\n".join(context_parts)
+
+        # 3. بناء الـ Prompt
+        full_prompt = f"{context}سؤال الطالب: {request.prompt}".strip()
         contents = [full_prompt]
 
+        # 4. معالجة الصورة إن وُجدت
         if request.image:
             image_data_str = request.image.split(",")[1] if "," in request.image else request.image
             image_bytes = base64.b64decode(image_data_str)
-            mime_type = "image/jpeg" if "jpeg" in request.image or "jpg" in request.image else "image/png"
+            mime_type = "image/jpeg" if ("jpeg" in request.image or "jpg" in request.image) else "image/png"
             contents.append({"mime_type": mime_type, "data": image_bytes})
 
-        models_to_try = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']
+        # 5. استدعاء النموذج مع التبديل التلقائي عند الخطأ أو الضغط
+        models_to_try = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
         response_text = None
 
         for model_name in models_to_try:
             try:
                 custom_model = genai.GenerativeModel(
                     model_name=model_name,
-                    system_instruction=final_system_instruction
+                    system_instruction=final_system_instruction if final_system_instruction else None
                 )
                 response = await asyncio.wait_for(
                     custom_model.generate_content_async(contents),
@@ -235,15 +245,16 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
                 response_text = response.text
                 break
             except asyncio.TimeoutError:
-                print(f"الموديل {model_name} أخذ وقت طويل (Timeout)، نجرب التالي...")
+                print(f"الموديل {model_name} أخذ وقتاً طويلاً (Timeout)، جاري تجربة التالي...")
                 continue
             except Exception as e:
                 print(f"فشل الموديل {model_name} بسبب: {e}")
                 continue
 
         if not response_text:
-            return {"response": "معلش يا بطل فيه ضغط على السيستم حالياً، ابعت سؤالك تاني كمان شوية"}
+            return {"response": "معلش يا بطل، فيه ضغط على السيستم حالياً. ابعت سؤالك تاني كمان شوية."}
 
+        # 6. حفظ المحادثة في قاعدة البيانات
         student_msg = StudentHistory(
             student_id=request.student_id,
             lesson_id=request.lesson_id,
@@ -260,9 +271,10 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
             message=response_text
         )
         session.add(ai_msg)
-        await session.commit()
 
+        await session.commit()
         return {"response": response_text}
+
     except Exception as e:
         await session.rollback()
         print(f"Database/Server Error: {e}")
