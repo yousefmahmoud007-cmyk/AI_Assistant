@@ -247,7 +247,8 @@ async function loadAIPersonality() {
 
 async function loadSidebarHistory() {
     try {
-        const response = await fetch(`${API_BASE_URL}/ai/history/sidebar/${CURRENT_STUDENT_ID}`);
+        const response = await fetch(`${API_BASE_URL}/ai/history/sidebar/${CURRENT_STUDENT_ID}/${CURRENT_KB_ID}`);
+
         if (response.ok) {
             const data = await response.json();
             const sidebarContainer = document.getElementById('chatHistorySidebar');
