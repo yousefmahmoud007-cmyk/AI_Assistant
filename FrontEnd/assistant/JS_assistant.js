@@ -79,7 +79,12 @@ function appendMessage(text, imageBase64, sender) {
         
         // [إضافة] تشغيل معالجة KaTeX داخل نص الرسالة
         renderLatexEquations(textElement);
-        
+        // تشغيل تصيير المخططات الرسومية فوراً ككتلة صورة
+        if (window.mermaid) {
+            mermaid.run({
+                nodes: textElement.querySelectorAll('.language-mermaid')
+            });
+        }
         messageElement.appendChild(textElement);
     }
 
