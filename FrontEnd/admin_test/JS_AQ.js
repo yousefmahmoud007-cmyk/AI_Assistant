@@ -1,19 +1,19 @@
-const DUMMY_EXAM_ID = 1; // معرف الامتحان المطلوب عرض نتائجه
-const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app"; // رابط السيرفر الذي يستضيف FastAPI
+const DUMMY_EXAM_ID = 1;
+const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app";
 
-let currentSelectedGradeId = null; // متغير للاحتفاظ بـ id سجل الدرجة المراد تعديلها
+let currentRecords = []; // لتخزين بيانات الطلاب لسهولة استدعائها
+let currentSelectedGrade = null; // للاحتفاظ ببيانات السجل المفتوح حالياً
 
-// جلب النتائج تلقائياً بمجرد فتح الصفحة
 document.addEventListener('DOMContentLoaded', fetchExamResults);
 
+// 1. جلب النتائج من السيرفر
 async function fetchExamResults() {
     try {
         const response = await fetch(`${API_BASE_URL}/ai/admin/exam-results/${DUMMY_EXAM_ID}`);
-
         const result = await response.json();
-
         if (result.status === "success") {
-            renderResultsTable(result.data);
+            currentRecords = result.data; // حفظ البيانات محلياً
+            renderResultsTable(currentRecords);
         } else {
             console.error("فشل جلب البيانات:", result.message);
         }
@@ -22,11 +22,10 @@ async function fetchExamResults() {
     }
 }
 
-// بناء صفوف الجدول ديناميكياً
+// 2. بناء الجدول وإضافة الكلاس للزرار
 function renderResultsTable(records) {
     const tableBody = document.getElementById('resultsTableBody');
     if (!tableBody) return;
-
     tableBody.innerHTML = '';
 
     if (records.length === 0) {
@@ -44,7 +43,7 @@ function renderResultsTable(records) {
             <td id="final-score-${item.grade_id}">${item.final_score}</td>
             <td id="status-${item.grade_id}">${item.status}</td>
             <td>
-                <button onclick="openReviewModal(${item.grade_id}, '${item.student_code}', ${item.final_score})">
+                <button class="btn-review-action" onclick="openReviewModal(${item.grade_id})">
                     مراجعة / تعديل
                 </button>
             </td>
@@ -53,38 +52,77 @@ function renderResultsTable(records) {
     });
 }
 
-// دوال التحكم في النافذة المنبثقة (Modal)
-function openReviewModal(gradeId, studentCode, currentScore) {
-    currentSelectedGradeId = gradeId; // حفظ معرّف السجل الحالي
+// 3. فتح النافذة وعرض إجابة الطالب وتحديد الماكس
+function openReviewModal(gradeId) {
+    // البحث عن السجل المطابق في البيانات
+    const record = currentRecords.find(r => r.grade_id === gradeId);
+    if (!record) return;
 
-    document.getElementById('modalStudentId').innerText = studentCode;
-    document.getElementById('finalScore').value = currentScore;
+    currentSelectedGrade = record;
+
+    // ملء بيانات المودال
+    document.getElementById('modalStudentId').innerText = record.student_code;
+    
+    // وضع النصوص داخل المودال (مع فحص وجود العناصر)
+    const qTextEl = document.getElementById('modalQuestionText');
+    const mAnswerEl = document.getElementById('modalModelAnswer');
+    const sAnswerEl = document.getElementById('modalStudentAnswer');
+    const aiFeedEl = document.getElementById('modalAiFeedback');
+
+    if (qTextEl) qTextEl.innerText = record.question_text || 'لا يوجد نص للسؤال';
+    if (mAnswerEl) mAnswerEl.innerText = record.model_answer || 'لا يوجد نموذج إجابة';
+    if (sAnswerEl) sAnswerEl.innerText = record.student_answer || 'لم يقدم الطالب إجابة';
+    if (aiFeedEl) aiFeedEl.innerText = record.ai_feedback || 'لا توجد ملاحظات';
+
+    // ضبط حقل الدرجة وحدودها القصوى والدنيا
+    const scoreInput = document.getElementById('finalScore');
+    scoreInput.value = record.final_score;
+    scoreInput.max = record.max_score; // قفل الماكس على درجة السؤال
+    scoreInput.min = 0;
+
+    // عرض الحد الأقصى بجانب الخانة للمدرس
+    const maxScoreLabel = document.getElementById('modalMaxScoreLabel');
+    if (maxScoreLabel) maxScoreLabel.innerText = `(من ${record.max_score})`;
+
     document.getElementById('reviewModal').style.display = 'flex';
 }
 
 function closeReviewModal() {
     document.getElementById('reviewModal').style.display = 'none';
-    currentSelectedGradeId = null;
+    currentSelectedGrade = null;
 }
 
-// حفظ الدرجة الجديدة وإرسالها للباك إند
+// 4. التحقق من الدرجة قبل الإرسال لمنع تجاوز الماكس
 async function saveGrade() {
-    const finalScoreValue = document.getElementById('finalScore').value;
+    if (!currentSelectedGrade) return;
 
-    if (finalScoreValue === '' || currentSelectedGradeId === null) {
-        alert('الرجاء إدخال درجة صالحة');
+    const finalScoreInput = document.getElementById('finalScore');
+    const finalScoreValue = Number(finalScoreInput.value);
+
+    // التحقق من صحة الرقم وعدم تعديه الماكس
+    if (isNaN(finalScoreValue) || finalScoreInput.value === '') {
+        alert('الرجاء إدخال رقم صحيح للدرجة.');
+        return;
+    }
+
+    if (finalScoreValue > currentSelectedGrade.max_score) {
+        alert(`خطأ: الدرجة لا يمكن أن تتجاوز الدرجة القصوى (${currentSelectedGrade.max_score})!`);
+        finalScoreInput.value = currentSelectedGrade.max_score;
+        return;
+    }
+
+    if (finalScoreValue < 0) {
+        alert('خطأ: لا يمكن إدخال درجة سالبة.');
         return;
     }
 
     try {
         const response = await fetch(`${API_BASE_URL}/ai/admin/update-grade`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                grade_id: currentSelectedGradeId,
-                final_score: parseInt(finalScoreValue),
+                grade_id: currentSelectedGrade.grade_id,
+                final_score: Math.round(finalScoreValue),
                 status: "تم التعديل يدوياً"
             })
         });
@@ -94,10 +132,12 @@ async function saveGrade() {
         if (response.ok && data.status === "success") {
             alert('تم اعتماد الدرجة وحفظها بنجاح!');
 
-            // تحديث القيم في الجدول مباشرة دون الحاجة لإعادة تحميل الصفحة
-            const scoreCell = document.getElementById(`final-score-${currentSelectedGradeId}`);
-            const statusCell = document.getElementById(`status-${currentSelectedGradeId}`);
-            
+            // تحديث البيانات محلياً وفي الجدول
+            currentSelectedGrade.final_score = data.final_score;
+            currentSelectedGrade.status = data.status;
+
+            const scoreCell = document.getElementById(`final-score-${currentSelectedGrade.grade_id}`);
+            const statusCell = document.getElementById(`status-${currentSelectedGrade.grade_id}`);
             if (scoreCell) scoreCell.innerText = data.final_score;
             if (statusCell) statusCell.innerText = data.status;
 
@@ -111,7 +151,6 @@ async function saveGrade() {
     }
 }
 
-// إغلاق النافذة عند النقر خارجها
 window.onclick = function(event) {
     const modal = document.getElementById('reviewModal');
     if (event.target === modal) {
