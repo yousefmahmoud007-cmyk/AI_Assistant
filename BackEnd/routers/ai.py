@@ -5,6 +5,7 @@ import base64
 import asyncio
 from typing import Optional
 
+from sqlalchemy import or_
 from routers.prompts import build_grading_prompt
 import google.generativeai as genai
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -358,13 +359,20 @@ async def grade_student_answer(
         if not question_record:
             return {"status": "error", "message": "السؤال غير موجود"}
 
-        # 2. الاستعلام عن الطالب لجلب الـ ID الداخلي الخاص به
-        stmt_student = select(Student).where(Student.student_id == request.student_id)
+        # 2. الاستعلام عن الطالب لجلب الـ ID الداخلي (يبحث بالكود أو بالـ ID الرقمي)
+        clean_student_id = str(request.student_id).strip()
+        
+        stmt_student = select(Student).where(
+            or_(
+                Student.student_id == clean_student_id,
+                Student.id == int(clean_student_id) if clean_student_id.isdigit() else False
+            )
+        )
         res_student = await session.execute(stmt_student)
         student_record = res_student.scalar_one_or_none()
-
+        
         if not student_record:
-             return {"status": "error", "message": "بيانات الطالب غير صحيحة"}
+            return {"status": "error", "message": "بيانات الطالب غير صحيحة"}
 
         # 3. تجهيز الـ Prompt للذكاء الاصطناعي
         prompt = build_grading_prompt( 
