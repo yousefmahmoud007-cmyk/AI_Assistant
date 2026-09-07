@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الإدارة - تصحيح المقالي</title>
+    <link rel="stylesheet" href="style_AQ.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dash-header">
+            <div>
+                <h2>لوحة تحكم التصحيح الذكي ⚙️</h2>
+                <p>متابعة وتدقيق درجات الاختبارات</p>
+            </div>
+            <button class="export-btn">تصدير النتيجة (Excel)</button>
+        </header>
+
+        <!-- كروت الإحصائيات -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>إجمالي الإجابات</h3>
+                <div class="stat-value" id="totalAnswersCount">-</div>
+            </div>
+            <div class="stat-card success-stat">
+                <h3>تم تصحيحه آلياً (AI)</h3>
+                <div class="stat-value" id="aiGradedCount">-</div>
+            </div>
+            <div class="stat-card warning-stat">
+                <h3>يحتاج مراجعة يدوية</h3>
+                <div class="stat-value" id="manualReviewCount">-</div>
+                <p>إجابات معدلة أو معلقة</p>
+            </div>
+        </div>
+
+        <!-- جدول إجابات الطلاب -->
+        <div class="table-container">
+            <table class="answers-table">
+                <thead>
+                    <tr>
+                        <th>كود الطالب (ID)</th>
+                        <th>نص السؤال</th>
+                        <th>إجابة الطالب</th>
+                        <th>درجة الـ AI</th>
+                        <th>الدرجة النهائية</th>
+                        <th>حالة التصحيح</th>
+                        <th>الإجراء</th>
+                    </tr>
+                </thead>
+                <!-- تفرغ الصفوف ليقوم JS_AQ.js بحقنها -->
+                <tbody id="resultsTableBody">
+                    <tr>
+                        <td colspan="7" style="text-align: center;">جاري تحميل إجابات الطلاب...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- نافذة المراجعة والتعديل (Modal) -->
+    <div class="modal-overlay" id="reviewModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>مراجعة إجابة الطالب: <span id="modalStudentId"></span></h3>
+                <button class="close-btn" onclick="closeReviewModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-group">
+                    <label>السؤال:</label>
+                    <p id="modalQuestionText" class="question-preview"></p>
+                </div>
+                <div class="info-group">
+                    <label>نموذج الإجابة المعتمد:</label>
+                    <p id="modalModelAnswer" class="model-answer-preview"></p>
+                </div>
+                <div class="info-group">
+                    <label>إجابة الطالب الكاملة:</label>
+                    <p id="modalStudentAnswer" class="student-full-answer"></p>
+                </div>
+                <div class="info-group ai-reasoning">
+                    <label>تحليل الذكاء الاصطناعي:</label>
+                    <p id="modalAiFeedback"></p>
+                </div>
+                <div class="edit-score-group">
+                    <label>تعديل الدرجة النهائية:</label>
+                    <input type="number" id="finalScore" min="0" value="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="save-btn" onclick="saveGrade()">اعتماد الدرجة النهائية</button>
+                <button class="cancel-btn" onclick="closeReviewModal()">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="JS_AQ.js"></script>
+</body>
+</html>

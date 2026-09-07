@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ديمو التصحيح الذكي للمقالي</title>
+    <link rel="stylesheet" href="style_quiz.css">
+</head>
+<body>
+    <div class="exam-container">
+        <div class="exam-header">
+            <h2 id="examTitle">امتحان تقييم مستوى</h2>
+            <p>التصحيح مدعوم بنموذج الذكاء الاصطناعي</p>
+        </div>
+
+        <div class="question-card">
+            <h3 id="questionTitle">السؤال المقالي:</h3>
+            <p id="questionText">جاري تحميل السؤال...</p>
+        </div>
+
+        <div class="answer-section">
+            <label for="studentAnswer">إجابة الطالب:</label>
+            <textarea id="studentAnswer" placeholder="اكتب إجابتك هنا بوضوح أو التقط صورة لإجابتك الورقية..."></textarea>
+            
+            <button type="button" class="upload-btn" id="uploadTriggerBtn" title="التقاط أو رفع صورة" onclick="openCamera()">📷</button>
+            <input type="file" id="imageInput" accept="image/*" capture="environment" style="display: none;" onchange="handleImageSelected(event)" />
+            
+            <div id="imagePreviewContainer" style="display: none;">
+                <img id="imagePreview" src="" alt="معاينة إجابة الطالب" />
+                <button type="button" onclick="removeImage()">✕</button>
+            </div>
+
+            <button class="action-btn" id="submitBtn" onclick="submitAnswer()">
+                <span id="btnText">تسليم الإجابة للتصحيح</span>
+                <div class="loader" id="btnLoader" style="display: none;"></div>
+            </button>
+        </div>
+
+        <!-- منطقة النتيجة -->
+        <div class="result-container" id="resultContainer" style="display: none;">
+            <div class="result-card">
+                <div class="score-badge">الدرجة: <span id="aiScore">-</span> / <span id="maxScore">-</span></div>
+                <div class="ai-feedback">
+                    <h4>📝 تعليق المساعد الأكاديمي (AI):</h4>
+                    <p id="aiFeedback"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="JS_quiz.js"></script>
+</body>
+</html>
