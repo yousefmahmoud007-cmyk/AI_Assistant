@@ -1,8 +1,9 @@
 const DUMMY_EXAM_ID = 1;
 const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app";
 
-let currentRecords = []; // لتخزين بيانات الطلاب لسهولة استدعائها
-let currentSelectedGrade = null; // للاحتفاظ ببيانات السجل المفتوح حالياً
+let currentRecords = [];
+let activeRecord = null;
+let currentSelectedGradeId = null; // دعم للمتغير القديم لمنع أي تعارض
 
 document.addEventListener('DOMContentLoaded', fetchExamResults);
 
@@ -11,8 +12,10 @@ async function fetchExamResults() {
     try {
         const response = await fetch(`${API_BASE_URL}/ai/admin/exam-results/${DUMMY_EXAM_ID}`);
         const result = await response.json();
+
         if (result.status === "success") {
-            currentRecords = result.data; // حفظ البيانات محلياً
+            currentRecords = result.data || [];
+            updateDashboardStats(currentRecords);
             renderResultsTable(currentRecords);
         } else {
             console.error("فشل جلب البيانات:", result.message);
@@ -22,96 +25,127 @@ async function fetchExamResults() {
     }
 }
 
-// 2. بناء الجدول وإضافة الكلاس للزرار
+// 2. تحديث كروت الإحصائيات العلوية
+function updateDashboardStats(records) {
+    const totalCount = records.length;
+    const aiGraded = records.filter(r => r.status && r.status.includes('آلياً')).length;
+    const manualReview = records.filter(r => r.status && !r.status.includes('آلياً')).length;
+
+    const elTotal = document.getElementById('totalAnswersCount');
+    const elAi = document.getElementById('aiGradedCount');
+    const elManual = document.getElementById('manualReviewCount');
+
+    if (elTotal) elTotal.innerText = totalCount;
+    if (elAi) elAi.innerText = aiGraded;
+    if (elManual) elManual.innerText = manualReview;
+}
+
+// 3. بناء جدول الإجابات
 function renderResultsTable(records) {
     const tableBody = document.getElementById('resultsTableBody');
     if (!tableBody) return;
     tableBody.innerHTML = '';
 
     if (records.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;">لا توجد إجابات مسجلة بعد</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 25px;">لا توجد إجابات مسجلة بعد</td></tr>`;
         return;
     }
 
     records.forEach(item => {
+        const isAiGraded = item.status && item.status.includes('آلياً');
+        const statusClass = isAiGraded ? 'status-ai' : 'status-manual';
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${item.student_code}</td>
-            <td>${item.question_text}</td>
-            <td>${item.student_answer}</td>
-            <td>${item.ai_score} / ${item.max_score}</td>
-            <td id="final-score-${item.grade_id}">${item.final_score}</td>
-            <td id="status-${item.grade_id}">${item.status}</td>
+            <td class="student-code">${item.student_code}</td>
+            <td class="truncate-cell" title="${item.question_text}">${item.question_text}</td>
+            <td class="truncate-cell" title="${item.student_answer}">${item.student_answer}</td>
+            <td><strong>${item.ai_score}</strong> / ${item.max_score}</td>
+            <td id="final-score-${item.grade_id}"><strong>${item.final_score}</strong></td>
+            <td><span class="status-badge ${statusClass}" id="status-${item.grade_id}">${item.status}</span></td>
             <td>
-                <button class="btn-review-action" onclick="openReviewModal(${item.grade_id})">
-                    مراجعة / تعديل
-                </button>
+                <button class="review-btn" onclick="openReviewModal(${item.grade_id})">مراجعة / تعديل</button>
             </td>
         `;
         tableBody.appendChild(tr);
     });
 }
 
-// 3. فتح النافذة وعرض إجابة الطالب وتحديد الماكس
+// 4. فتح المودال مع فحص أمان وجود العناصر في الـ HTML
 function openReviewModal(gradeId) {
-    // البحث عن السجل المطابق في البيانات
-    const record = currentRecords.find(r => r.grade_id === gradeId);
-    if (!record) return;
+    activeRecord = currentRecords.find(r => r.grade_id == gradeId);
+    currentSelectedGradeId = gradeId;
 
-    currentSelectedGrade = record;
+    if (!activeRecord) {
+        console.error("لم يتم العثور على السجل بالمعرف:", gradeId);
+        return;
+    }
 
-    // ملء بيانات المودال
-    document.getElementById('modalStudentId').innerText = record.student_code;
-    
-    // وضع النصوص داخل المودال (مع فحص وجود العناصر)
-    const qTextEl = document.getElementById('modalQuestionText');
-    const mAnswerEl = document.getElementById('modalModelAnswer');
-    const sAnswerEl = document.getElementById('modalStudentAnswer');
-    const aiFeedEl = document.getElementById('modalAiFeedback');
-
-    if (qTextEl) qTextEl.innerText = record.question_text || 'لا يوجد نص للسؤال';
-    if (mAnswerEl) mAnswerEl.innerText = record.model_answer || 'لا يوجد نموذج إجابة';
-    if (sAnswerEl) sAnswerEl.innerText = record.student_answer || 'لم يقدم الطالب إجابة';
-    if (aiFeedEl) aiFeedEl.innerText = record.ai_feedback || 'لا توجد ملاحظات';
-
-    // ضبط حقل الدرجة وحدودها القصوى والدنيا
+    // تعبئة البيانات مع التحقق من عدم كون العنصر null
+    const studentEl = document.getElementById('modalStudentId');
+    const qEl = document.getElementById('modalQuestionText');
+    const mEl = document.getElementById('modalModelAnswer');
+    const sEl = document.getElementById('modalStudentAnswer');
+    const fbEl = document.getElementById('modalAiFeedback');
     const scoreInput = document.getElementById('finalScore');
-    scoreInput.value = record.final_score;
-    scoreInput.max = record.max_score; // قفل الماكس على درجة السؤال
-    scoreInput.min = 0;
+    const maxHintEl = document.getElementById('modalMaxScoreLabel');
 
-    // عرض الحد الأقصى بجانب الخانة للمدرس
-    const maxScoreLabel = document.getElementById('modalMaxScoreLabel');
-    if (maxScoreLabel) maxScoreLabel.innerText = `(من ${record.max_score})`;
+    if (studentEl) studentEl.innerText = activeRecord.student_code;
+    if (qEl) qEl.innerText = activeRecord.question_text || 'لا يوجد نص';
+    if (mEl) mEl.innerText = activeRecord.model_answer || 'لا يوجد نموذج إجابة';
+    if (sEl) sEl.innerText = activeRecord.student_answer || 'لا توجد إجابة';
+    if (fbEl) fbEl.innerText = activeRecord.ai_feedback || 'لا توجد ملاحظات';
 
-    document.getElementById('reviewModal').style.display = 'flex';
+    if (scoreInput) {
+        scoreInput.value = activeRecord.final_score;
+        scoreInput.max = activeRecord.max_score;
+        scoreInput.min = 0;
+    }
+
+    if (maxHintEl) {
+        maxHintEl.innerText = `(الدرجة القصوى: ${activeRecord.max_score})`;
+    }
+
+    const modal = document.getElementById('reviewModal');
+    if (modal) modal.style.display = 'flex';
 }
 
 function closeReviewModal() {
-    document.getElementById('reviewModal').style.display = 'none';
-    currentSelectedGrade = null;
+    const modal = document.getElementById('reviewModal');
+    if (modal) modal.style.display = 'none';
 }
 
-// 4. التحقق من الدرجة قبل الإرسال لمنع تجاوز الماكس
+// 5. حفظ الدرجة مع معالجة الاستجابة وحماية التحقق
 async function saveGrade() {
-    if (!activeRecord) return;
+    // محاولة إيجاد السجل سواء عبر activeRecord أو عبر currentSelectedGradeId
+    if (!activeRecord && currentSelectedGradeId) {
+        activeRecord = currentRecords.find(r => r.grade_id == currentSelectedGradeId);
+    }
+
+    if (!activeRecord) {
+        alert('حدث خطأ: لم يتم تحديد سجل المراجعة، يرجى إعادة فتح النافذة.');
+        return;
+    }
 
     const scoreInput = document.getElementById('finalScore');
+    if (!scoreInput) return;
+
     const newScore = parseFloat(scoreInput.value);
 
+    // التحقق من المدخلات
     if (isNaN(newScore) || scoreInput.value.trim() === '') {
         alert('الرجاء إدخال رقم صحيح للدرجة.');
         return;
     }
 
     if (newScore > activeRecord.max_score) {
-        alert(`خطأ: الدرجة المدخلة (${newScore}) تتجاوز الدرجة القصوى (${activeRecord.max_score})!`);
+        alert(`خطأ: الدرجة المدخلة (${newScore}) تتجاوز الحد الأقصى للسؤال (${activeRecord.max_score})!`);
         scoreInput.value = activeRecord.max_score;
         return;
     }
 
     if (newScore < 0) {
-        alert('خطأ: الدرجة لا يمكن أن تكون أقل من صفر.');
+        alert('خطأ: الدرجة لا يمكن أن تكون سالبة.');
         scoreInput.value = 0;
         return;
     }
@@ -129,8 +163,8 @@ async function saveGrade() {
 
         const data = await response.json();
 
-        // فحص النجاح بمرونة: لو الـ status نجاح أو الرسالة تؤكد التعديل
-        const isSuccess = response.ok && (data.status === "success" || data.message === "تم تعديل الدرجة بنجاح");
+        // قبول النجاح سواء رجع بـ status="success" أو أرجع رسالة نجاح
+        const isSuccess = response.ok && (data.status === "success" || (data.message && data.message.includes("بنجاح")));
 
         if (isSuccess) {
             alert('تم اعتماد الدرجة وحفظها بنجاح!');
@@ -139,6 +173,7 @@ async function saveGrade() {
             activeRecord.final_score = data.final_score;
             activeRecord.status = updatedStatus;
 
+            // تحديث الجدول مباشرة في الواجهة
             const scoreEl = document.getElementById(`final-score-${activeRecord.grade_id}`);
             const statusEl = document.getElementById(`status-${activeRecord.grade_id}`);
 
@@ -158,3 +193,11 @@ async function saveGrade() {
         alert('حدث خطأ أثناء الاتصال بالسيرفر لحفظ الدرجة.');
     }
 }
+
+// إغلاق النافذة عند النقر خارجها
+window.onclick = function(event) {
+    const modal = document.getElementById('reviewModal');
+    if (event.target === modal) {
+        closeReviewModal();
+    }
+};
