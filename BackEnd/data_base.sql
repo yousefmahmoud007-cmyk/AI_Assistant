@@ -60,7 +60,7 @@ CREATE TABLE Exam_questions (
     title VARCHAR(255),          -- (اختياري) مثال: السؤال الأول
     question_text TEXT NOT NULL, -- نص السؤال
     model_answer TEXT NOT NULL,  -- نموذج الإجابة
-    max_score INT DEFAULT 1,     -- الدرجة القصوى
+    max_score DOUBLE PRECISION,     -- الدرجة القصوى
     exam_id INT,
     CONSTRAINT fk_question_exam FOREIGN KEY(exam_id) REFERENCES Exams(id) ON DELETE CASCADE
 );
@@ -98,9 +98,9 @@ CREATE TABLE Student_grades (
     student_id INT NOT NULL, 
     exam_question_id INT NOT NULL, 
     student_answer TEXT NOT NULL, 
-    ai_score FLOAT NOT NULL,        
+    ai_score DOUBLE PRECISION NOT NULL,        
     ai_feedback TEXT,             
-    final_score FLOAT,              
+    final_score DOUBLE PRECISION,              
     status VARCHAR(50) DEFAULT 'معتمد آلياً', 
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_grade_student FOREIGN KEY (student_id) REFERENCES Students(id) ON DELETE CASCADE,
