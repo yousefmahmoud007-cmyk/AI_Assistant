@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', fetchExamResults);
 
 async function fetchExamResults() {
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/exam-results/${DUMMY_EXAM_ID}`);
+        const response = await fetch(`${API_BASE_URL}/ai/admin/exam-results/${DUMMY_EXAM_ID}`);
+
         const result = await response.json();
 
         if (result.status === "success") {
@@ -76,7 +77,7 @@ async function saveGrade() {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/update-grade`, {
+        const response = await fetch(`${API_BASE_URL}/ai/admin/update-grade`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
