@@ -1,13 +1,43 @@
 // ==========================================
 // بيانات تجريبية ثابتة لاختبار الفكرة
 // ==========================================
-const DUMMY_KNOWLEDGE_BANK_ID = 4;     // كود بنك المعرفة (المادة الخاصة بالمدرس)
+const DUMMY_KNOWLEDGE_BANK_ID = 4;     // كود المادة المعتمدة
 const DUMMY_QUESTION_ID = 1;           // رقم السؤال في جدول ExamQuestion
 const DUMMY_STUDENT_ID = "01012345678"; // كود/رقم هاتف الطالب المسجل
-const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app"; // رابط سيرفر Railway
+const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app";
 
 // ==========================================
-// دالة إرسال الإجابة والتصحيح بالذكاء الاصطناعي
+// 1. جلب السؤال تلقائياً عند فتح الصفحة
+// ==========================================
+window.addEventListener('DOMContentLoaded', fetchQuestion);
+
+async function fetchQuestion() {
+    const questionTextElem = document.getElementById('questionText');
+    const questionTitleElem = document.getElementById('questionTitle');
+    const examTitleElem = document.getElementById('examTitle');
+    const maxScoreElem = document.getElementById('maxScore');
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/ai/exam-question/${DUMMY_QUESTION_ID}`);
+        const data = await response.json();
+
+        if (response.ok && data.status === "success") {
+            if (questionTextElem) questionTextElem.innerText = data.question_text;
+            if (questionTitleElem && data.title) questionTitleElem.innerText = data.title;
+            if (examTitleElem && data.exam_title) examTitleElem.innerText = data.exam_title;
+            if (maxScoreElem) maxScoreElem.innerText = data.max_score;
+        } else {
+            if (questionTextElem) questionTextElem.innerText = "تعذر تحميل السؤال. تأكد من وجود سؤال برقم 1 في قاعدة البيانات.";
+            console.error("فشل جلب السؤال:", data.detail || data.message);
+        }
+    } catch (error) {
+        console.error("Fetch Question Error:", error);
+        if (questionTextElem) questionTextElem.innerText = "حدث خطأ في الاتصال بالخادم لجلب نص السؤال.";
+    }
+}
+
+// ==========================================
+// 2. إرسال الإجابة للتصحيح عبر الذكاء الاصطناعي
 // ==========================================
 async function submitAnswer() {
     const answerText = document.getElementById('studentAnswer').value;
@@ -16,20 +46,17 @@ async function submitAnswer() {
     const loader = document.getElementById('btnLoader');
     const resultContainer = document.getElementById('resultContainer');
 
-    // التأكد من أن الطالب كتب إجابة
     if (answerText.trim() === '') {
         alert('الرجاء كتابة إجابة قبل التسليم!');
         return;
     }
 
-    // تغيير حالة الزر لانتظار الرد
     btn.disabled = true;
     btnText.innerText = 'جاري تحليل الإجابة وتصحيحها عبر الذكاء الاصطناعي...';
     loader.style.display = 'block';
     resultContainer.style.display = 'none';
 
     try {
-        // تم إضافة /ai لأن مسار الـ router في الباك إند هو: prefix="/ai"
         const response = await fetch(`${API_BASE_URL}/ai/quiz-answer`, {
             method: 'POST',
             headers: {
@@ -46,7 +73,6 @@ async function submitAnswer() {
         const data = await response.json();
 
         if (response.ok && data.status === "success") {
-            // عرض الدرجة وتعليق الذكاء الاصطناعي في الواجهة
             const scoreElem = document.getElementById('aiScore');
             const feedbackElem = document.getElementById('aiFeedback');
 
@@ -59,7 +85,7 @@ async function submitAnswer() {
         }
     } catch (error) {
         console.error("Submission Error:", error);
-        alert('فشل الاتصال بالسيرفر، تأكد من أن السيرفر يعمل بشكل صحيح.');
+        alert('فشل الاتصال بالسيرفر أثناء تسليم الإجابة.');
     } finally {
         btn.disabled = false;
         btnText.innerText = 'إعادة الإرسال';
@@ -68,16 +94,13 @@ async function submitAnswer() {
 }
 
 // ==========================================
-// وظائف الكاميرا ورفع الصورة
+// 3. وظائف الكاميرا ورفع الصورة
 // ==========================================
-
-// فتح كاميرا الهاتف مباشرة أو نافذة الملفات
 function openCamera() {
     const input = document.getElementById('imageInput');
     if (input) input.click();
 }
 
-// معاينة الصورة المختارة قبل الإرسال
 function handleImageSelected(event) {
     const file = event.target.files[0];
     if (file) {
@@ -92,7 +115,6 @@ function handleImageSelected(event) {
     }
 }
 
-// إلغاء الصورة المختارة
 function removeImage() {
     const input = document.getElementById('imageInput');
     const container = document.getElementById('imagePreviewContainer');

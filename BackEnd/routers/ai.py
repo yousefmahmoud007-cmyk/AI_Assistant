@@ -312,6 +312,38 @@ async def ask_ai(request: UserRequest, session: AsyncSession = Depends(get_sessi
 # ==========================================
 # Routes (نظام تصحيح الامتحانات)
 # ==========================================
+@ai_router.get("/exam-question/{question_id}")
+async def get_exam_question(
+    question_id: int, 
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # جلب السؤال مع بيانات الامتحان المرتبط به
+        stmt = (
+            select(ExamQuestion)
+            .options(selectinload(ExamQuestion.exam))
+            .where(ExamQuestion.id == question_id)
+        )
+        result = await session.execute(stmt)
+        question = result.scalar_one_or_none()
+
+        if not question:
+            raise HTTPException(status_code=404, detail="السؤال غير موجود")
+
+        return {
+            "status": "success",
+            "id": question.id,
+            "title": question.title or "السؤال المقالي",
+            "question_text": question.question_text,
+            "max_score": question.max_score,
+            "exam_title": question.exam.title if question.exam else "امتحان تقييم مستوى"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Database Error: {e}")
+        raise HTTPException(status_code=500, detail="حدث خطأ أثناء جلب بيانات السؤال")
+
 @ai_router.post("/quiz-answer")
 async def grade_student_answer(
     request: StudentAnswerSchema, 
