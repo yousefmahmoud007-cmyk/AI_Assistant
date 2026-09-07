@@ -1,8 +1,14 @@
+// ==========================================
 // بيانات تجريبية ثابتة لاختبار الفكرة
-const DUMMY_QUESTION_ID = 1;        // رقم السؤال (kb_id) في جدول ExamQuestion
+// ==========================================
+const DUMMY_KNOWLEDGE_BANK_ID = 4;     // كود بنك المعرفة (المادة الخاصة بالمدرس)
+const DUMMY_QUESTION_ID = 1;           // رقم السؤال في جدول ExamQuestion
 const DUMMY_STUDENT_ID = "01012345678"; // كود/رقم هاتف الطالب المسجل
-const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app"; // رابط السيرفر الذي يستضيف FastAPI
+const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app"; // رابط سيرفر Railway
 
+// ==========================================
+// دالة إرسال الإجابة والتصحيح بالذكاء الاصطناعي
+// ==========================================
 async function submitAnswer() {
     const answerText = document.getElementById('studentAnswer').value;
     const btn = document.getElementById('submitBtn');
@@ -23,7 +29,8 @@ async function submitAnswer() {
     resultContainer.style.display = 'none';
 
     try {
-        const response = await fetch(`${API_BASE_URL}/quiz-answer`, {
+        // تم إضافة /ai لأن مسار الـ router في الباك إند هو: prefix="/ai"
+        const response = await fetch(`${API_BASE_URL}/ai/quiz-answer`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -31,15 +38,15 @@ async function submitAnswer() {
             body: JSON.stringify({
                 kb_id: DUMMY_QUESTION_ID,
                 student_id: DUMMY_STUDENT_ID,
-                student_answer: answerText
+                student_answer: answerText,
+                knowledge_bank_id: DUMMY_KNOWLEDGE_BANK_ID
             })
         });
 
         const data = await response.json();
 
         if (response.ok && data.status === "success") {
-            // عرض النتيجة وتقييم الـ AI داخل الحاوية
-            // (تأكد من وجود عناصر بالـ IDs دي أو عدلها حسب تصميم HTML عندك)
+            // عرض الدرجة وتعليق الذكاء الاصطناعي في الواجهة
             const scoreElem = document.getElementById('aiScore');
             const feedbackElem = document.getElementById('aiFeedback');
 
@@ -52,16 +59,22 @@ async function submitAnswer() {
         }
     } catch (error) {
         console.error("Submission Error:", error);
-        alert('فشل الاتصال بالسيرفر، تأكد من تشغيل FastAPI.');
+        alert('فشل الاتصال بالسيرفر، تأكد من أن السيرفر يعمل بشكل صحيح.');
     } finally {
         btn.disabled = false;
         btnText.innerText = 'إعادة الإرسال';
         loader.style.display = 'none';
     }
 }
+
+// ==========================================
+// وظائف الكاميرا ورفع الصورة
+// ==========================================
+
 // فتح كاميرا الهاتف مباشرة أو نافذة الملفات
 function openCamera() {
-    document.getElementById('imageInput').click();
+    const input = document.getElementById('imageInput');
+    if (input) input.click();
 }
 
 // معاينة الصورة المختارة قبل الإرسال
@@ -70,15 +83,19 @@ function handleImageSelected(event) {
     if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            document.getElementById('imagePreview').src = e.target.result;
-            document.getElementById('imagePreviewContainer').style.display = 'flex';
+            const preview = document.getElementById('imagePreview');
+            const container = document.getElementById('imagePreviewContainer');
+            if (preview) preview.src = e.target.result;
+            if (container) container.style.display = 'flex';
         };
         reader.readAsDataURL(file);
     }
 }
 
-// إلغاء الصورة
+// إلغاء الصورة المختارة
 function removeImage() {
-    document.getElementById('imageInput').value = "";
-    document.getElementById('imagePreviewContainer').style.display = 'none';
+    const input = document.getElementById('imageInput');
+    const container = document.getElementById('imagePreviewContainer');
+    if (input) input.value = "";
+    if (container) container.style.display = 'none';
 }
