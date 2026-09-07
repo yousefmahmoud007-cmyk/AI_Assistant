@@ -94,25 +94,25 @@ function closeReviewModal() {
 
 // 4. التحقق من الدرجة قبل الإرسال لمنع تجاوز الماكس
 async function saveGrade() {
-    if (!currentSelectedGrade) return;
+    if (!activeRecord) return;
 
-    const finalScoreInput = document.getElementById('finalScore');
-    const finalScoreValue = Number(finalScoreInput.value);
+    const scoreInput = document.getElementById('finalScore');
+    const newScore = parseFloat(scoreInput.value);
 
-    // التحقق من صحة الرقم وعدم تعديه الماكس
-    if (isNaN(finalScoreValue) || finalScoreInput.value === '') {
+    if (isNaN(newScore) || scoreInput.value.trim() === '') {
         alert('الرجاء إدخال رقم صحيح للدرجة.');
         return;
     }
 
-    if (finalScoreValue > currentSelectedGrade.max_score) {
-        alert(`خطأ: الدرجة لا يمكن أن تتجاوز الدرجة القصوى (${currentSelectedGrade.max_score})!`);
-        finalScoreInput.value = currentSelectedGrade.max_score;
+    if (newScore > activeRecord.max_score) {
+        alert(`خطأ: الدرجة المدخلة (${newScore}) تتجاوز الدرجة القصوى (${activeRecord.max_score})!`);
+        scoreInput.value = activeRecord.max_score;
         return;
     }
 
-    if (finalScoreValue < 0) {
-        alert('خطأ: لا يمكن إدخال درجة سالبة.');
+    if (newScore < 0) {
+        alert('خطأ: الدرجة لا يمكن أن تكون أقل من صفر.');
+        scoreInput.value = 0;
         return;
     }
 
@@ -121,39 +121,40 @@ async function saveGrade() {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                grade_id: currentSelectedGrade.grade_id,
-                final_score: Math.round(finalScoreValue),
+                grade_id: activeRecord.grade_id,
+                final_score: Math.round(newScore),
                 status: "تم التعديل يدوياً"
             })
         });
 
         const data = await response.json();
 
-        if (response.ok && data.status === "success") {
+        // فحص النجاح بمرونة: لو الـ status نجاح أو الرسالة تؤكد التعديل
+        const isSuccess = response.ok && (data.status === "success" || data.message === "تم تعديل الدرجة بنجاح");
+
+        if (isSuccess) {
             alert('تم اعتماد الدرجة وحفظها بنجاح!');
 
-            // تحديث البيانات محلياً وفي الجدول
-            currentSelectedGrade.final_score = data.final_score;
-            currentSelectedGrade.status = data.status;
+            const updatedStatus = data.record_status || data.status || "تم التعديل يدوياً";
+            activeRecord.final_score = data.final_score;
+            activeRecord.status = updatedStatus;
 
-            const scoreCell = document.getElementById(`final-score-${currentSelectedGrade.grade_id}`);
-            const statusCell = document.getElementById(`status-${currentSelectedGrade.grade_id}`);
-            if (scoreCell) scoreCell.innerText = data.final_score;
-            if (statusCell) statusCell.innerText = data.status;
+            const scoreEl = document.getElementById(`final-score-${activeRecord.grade_id}`);
+            const statusEl = document.getElementById(`status-${activeRecord.grade_id}`);
 
+            if (scoreEl) scoreEl.innerHTML = `<strong>${data.final_score}</strong>`;
+            if (statusEl) {
+                statusEl.innerText = updatedStatus;
+                statusEl.className = 'status-badge status-manual';
+            }
+
+            updateDashboardStats(currentRecords);
             closeReviewModal();
         } else {
             alert(`خطأ: ${data.message || 'تعذر حفظ التعديل'}`);
         }
     } catch (error) {
-        console.error("Save Grade Error:", error);
+        console.error("Save Error:", error);
         alert('حدث خطأ أثناء الاتصال بالسيرفر لحفظ الدرجة.');
     }
 }
-
-window.onclick = function(event) {
-    const modal = document.getElementById('reviewModal');
-    if (event.target === modal) {
-        closeReviewModal();
-    }
-};

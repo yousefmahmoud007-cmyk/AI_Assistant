@@ -510,8 +510,9 @@ async def update_student_grade(
             "message": "تم تعديل الدرجة بنجاح",
             "grade_id": grade_record.id,
             "final_score": grade_record.final_score,
-            "status": grade_record.status
+            "record_status": grade_record.status  # تم تغيير الاسم هنا
         }
+
     except Exception as e:
         await session.rollback()
         print(f"Database/Server Error: {e}")
