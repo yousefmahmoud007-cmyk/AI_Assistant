@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.future import select
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, TIMESTAMP, Table
+from sqlalchemy import Column, Float, Integer, String, Text, ForeignKey, TIMESTAMP, Table
 from sqlalchemy.sql import func
 
 # 1. تحميل المتغيرات وإعداد رابط الاتصال
@@ -124,9 +124,9 @@ class StudentGrade(Base):
     exam_question_id = Column(Integer, ForeignKey("exam_questions.id", ondelete="CASCADE"))
     
     student_answer = Column(Text, nullable=False)
-    ai_score = Column(Integer, nullable=False)
+    ai_score = Column(Float, nullable=False)
     ai_feedback = Column(Text, nullable=True)
-    final_score = Column(Integer, nullable=True)
+    final_score = Column(Float, nullable=True)
     status = Column(String(50), default="معتمد آلياً")
     timestamp = Column(TIMESTAMP, server_default=func.now())
 

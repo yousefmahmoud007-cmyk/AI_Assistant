@@ -54,7 +54,7 @@ class UserRequest(BaseModel):
 
 class UpdateGradeRequest(BaseModel):
     grade_id: int
-    final_score: int
+    final_score: float
     status: Optional[str] = "تم التعديل يدوياً"
 
 

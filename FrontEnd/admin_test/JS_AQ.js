@@ -156,7 +156,7 @@ async function saveGrade() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 grade_id: activeRecord.grade_id,
-                final_score: Math.round(newScore),
+                final_score: parseFloat(newScore.toFixed(1)),
                 status: "تم التعديل يدوياً"
             })
         });
