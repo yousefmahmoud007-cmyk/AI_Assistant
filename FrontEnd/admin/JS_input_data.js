@@ -1,11 +1,11 @@
 // ==========================================
 // 1. متغيرات التتبع وحالة الصفحة
 // ==========================================
-let unitCount = 0;
-let lessonCounters = {};
-let partCounters = {};
-let examCounters = {};
-let questionCounters = {};
+let unitCount = 1;
+let lessonCounters = { 1: 1 };
+let partCounters = { "1_1": 1 };
+let examCounters = { 1: 1 };
+let questionCounters = { "1_1": 1 };
 
 let isEditMode = false;
 let currentModelImageBase64 = null;
@@ -14,7 +14,7 @@ let currentKnowledgeBankId = null;
 const BASE_API = "https://aiassistant-production-214a.up.railway.app";
 
 // ==========================================
-// 2. جلب البيانات عند تحميل الصفحة
+// 2. التهيئة وجلب البيانات
 // ==========================================
 window.addEventListener('DOMContentLoaded', async () => {
     const adminId = localStorage.getItem("admin_id");
@@ -24,7 +24,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // جلب إعدادات الشخصية
+    // 1. جلب إعدادات الموديل
     try {
         const aiResponse = await fetch(`${BASE_API}/ai/personality/${adminId}`);
         if (aiResponse.ok) {
@@ -48,7 +48,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         console.error("خطأ في جلب الشخصية:", error);
     }
 
-    // جلب بيانات المنهج والامتحانات
+    // 2. جلب المنهج والامتحانات إن وُجدت
     try {
         const adminResponse = await fetch(`${BASE_API}/admin/knowledge-bank/${adminId}`);
         if (adminResponse.ok) {
@@ -65,20 +65,17 @@ window.addEventListener('DOMContentLoaded', async () => {
                 subjectNameEl.value = adminData.knowledge_bank_title;
             }
 
-            const unitsContainer = document.getElementById('unitsContainer');
-            if (unitsContainer) {
-                unitsContainer.innerHTML = '';
+            // لو راجع بيانات، نقوم بتفريغ الهيكل وإعادة بنائه بالبيانات الفعلية
+            if (adminData.units && adminData.units.length > 0) {
+                const container = document.getElementById('unitsContainer');
+                container.innerHTML = '';
                 unitCount = 0;
                 lessonCounters = {};
                 partCounters = {};
                 examCounters = {};
                 questionCounters = {};
 
-                if (adminData.units && adminData.units.length > 0) {
-                    adminData.units.forEach((unitData) => {
-                        renderUnit(unitData);
-                    });
-                }
+                adminData.units.forEach(unit => renderUnit(unit));
             }
         }
     } catch (error) {
@@ -89,48 +86,43 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==========================================
-// 3. دوال بناء عناصر الواجهة (DOM Rendering)
+// 3. دوال توليد العناصر ديناميكياً
 // ==========================================
 
 function renderUnit(unitData = null) {
     unitCount++;
-    const currentUnitId = unitCount;
-    lessonCounters[currentUnitId] = 0;
-    examCounters[currentUnitId] = 0;
-
-    const uId = unitData?.id || '';
-    const uTitle = unitData?.title || '';
+    const uIndex = unitCount;
+    lessonCounters[uIndex] = 0;
+    examCounters[uIndex] = 0;
 
     const unitHTML = `
-        <div class="unit-box shadow-sm p-3 mb-4 bg-white rounded" id="unit_${currentUnitId}" data-id="${uId}">
+        <div class="unit-box shadow-sm p-3 mb-4 bg-white rounded" id="unit_${uIndex}" data-id="${unitData?.id || ''}">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="d-flex align-items-end w-100 me-3">
-                    <button class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('unitContent_${currentUnitId}', 'arrowUnit_${currentUnitId}')" id="arrowUnit_${currentUnitId}">▼</button>
+                    <button type="button" class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('unitContent_${uIndex}', 'arrowUnit_${uIndex}')" id="arrowUnit_${uIndex}">▼</button>
                     <div class="w-100">
                         <label class="form-label fw-bold fs-5 text-dark">اسم الباب / الوحدة</label>
-                        <input type="text" class="form-control unit-title border-dark" placeholder="اسم الباب..." value="${uTitle}">
+                        <input type="text" class="form-control unit-title border-dark" placeholder="اسم الباب..." value="${unitData?.title || ''}">
                     </div>
                 </div>
-                <button class="btn btn-danger mt-4 action-btn-dynamic" onclick="removeBlock('unit_${currentUnitId}')">حذف الباب</button>
+                <button type="button" class="btn btn-danger mt-4 action-btn-dynamic" onclick="removeBlock('unit_${uIndex}')">حذف الباب</button>
             </div>
 
-            <div id="unitContent_${currentUnitId}">
-                <!-- قسم الدروس -->
-                <div class="mb-4">
-                    <h6 class="fw-bold text-primary mb-3">📚 الدروس التعليمية والشرح</h6>
-                    <div id="lessonsContainer_${currentUnitId}"></div>
-                    <button class="btn btn-outline-primary w-100 mt-2 py-2 fw-bold action-btn-dynamic" onclick="addLesson(${currentUnitId})">
-                        + إضافة درس جديد لهذه الوحدة
-                    </button>
-                </div>
+            <div id="unitContent_${uIndex}">
+                <div id="lessonsContainer_${uIndex}"></div>
+                <div id="examsContainer_${uIndex}"></div>
 
-                <!-- قسم الامتحانات ونماذج الإجابة -->
-                <div class="exams-wrapper rounded p-3 mt-3">
-                    <h6 class="fw-bold text-dark mb-3">📝 الامتحانات ونماذج الإجابة (للتصحيح الذكي)</h6>
-                    <div id="examsContainer_${currentUnitId}"></div>
-                    <button class="btn btn-outline-exam w-100 mt-2 py-2 fw-bold action-btn-dynamic" onclick="addExam(${currentUnitId})">
-                        + إضافة امتحان ونماذج إجابة لهذا الباب
-                    </button>
+                <div class="row g-2 mt-3 action-btn-dynamic">
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-primary w-100 py-2 fw-bold" onclick="addLesson(${uIndex})">
+                            + إضافة درس لهذه الوحدة
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-purple w-100 py-2 fw-bold" onclick="addExam(${uIndex})">
+                            + إضافة امتحان ونموذج إجابة
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -138,42 +130,36 @@ function renderUnit(unitData = null) {
 
     document.getElementById('unitsContainer').insertAdjacentHTML('beforeend', unitHTML);
 
-    // ملء الدروس القديمة
-    if (unitData?.lessons?.length > 0) {
-        unitData.lessons.forEach(lesson => renderLesson(currentUnitId, lesson));
+    if (unitData?.lessons && unitData.lessons.length > 0) {
+        unitData.lessons.forEach(l => renderLesson(uIndex, l));
     }
-
-    // ملء الامتحانات القديمة
-    if (unitData?.exams?.length > 0) {
-        unitData.exams.forEach(exam => renderExam(currentUnitId, exam));
+    if (unitData?.exams && unitData.exams.length > 0) {
+        unitData.exams.forEach(e => renderExam(uIndex, e));
     }
 }
 
 function renderLesson(unitId, lessonData = null) {
-    lessonCounters[unitId]++;
-    const lessonIndex = lessonCounters[unitId];
-    const uniqueLessonId = `${unitId}_${lessonIndex}`;
+    lessonCounters[unitId] = (lessonCounters[unitId] || 0) + 1;
+    const lIndex = lessonCounters[unitId];
+    const uniqueLessonId = `${unitId}_${lIndex}`;
     partCounters[uniqueLessonId] = 0;
 
-    const lId = lessonData?.id || '';
-    const lTitle = lessonData?.title || '';
-
     const lessonHTML = `
-        <div class="lesson-box shadow-sm p-3 mb-3 bg-light rounded border" id="lesson_${uniqueLessonId}" data-id="${lId}">
+        <div class="lesson-box shadow-sm p-3 mb-3 bg-light rounded border" id="lesson_${uniqueLessonId}" data-id="${lessonData?.id || ''}">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="d-flex align-items-end w-100 me-3">
-                    <button class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('lessonContent_${uniqueLessonId}', 'arrowLesson_${uniqueLessonId}')" id="arrowLesson_${uniqueLessonId}">▼</button>
+                    <button type="button" class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('lessonContent_${uniqueLessonId}', 'arrowLesson_${uniqueLessonId}')" id="arrowLesson_${uniqueLessonId}">▼</button>
                     <div class="w-100">
                         <label class="form-label fw-bold text-primary">اسم الدرس</label>
-                        <input type="text" class="form-control lesson-title border-primary" placeholder="اسم الدرس..." value="${lTitle}">
+                        <input type="text" class="form-control lesson-title border-primary" placeholder="اسم الدرس..." value="${lessonData?.title || ''}">
                     </div>
                 </div>
-                <button class="btn btn-outline-danger btn-sm mt-4 action-btn-dynamic" onclick="removeBlock('lesson_${uniqueLessonId}')">حذف الدرس</button>
+                <button type="button" class="btn btn-outline-danger btn-sm mt-4 action-btn-dynamic" onclick="removeBlock('lesson_${uniqueLessonId}')">حذف الدرس</button>
             </div>
             <div id="lessonContent_${uniqueLessonId}">
                 <div id="partsContainer_${uniqueLessonId}"></div>
-                <button class="btn btn-outline-secondary w-100 mt-2 fw-bold action-btn-dynamic" onclick="addPart('${uniqueLessonId}')">
-                    + إضافة جزء جديد للدرس
+                <button type="button" class="btn btn-outline-secondary w-100 mt-2 fw-bold action-btn-dynamic" onclick="addPart('${uniqueLessonId}')">
+                    + إضافة جزء جديد
                 </button>
             </div>
         </div>
@@ -181,45 +167,39 @@ function renderLesson(unitId, lessonData = null) {
 
     document.getElementById(`lessonsContainer_${unitId}`).insertAdjacentHTML('beforeend', lessonHTML);
 
-    if (lessonData?.parts?.length > 0) {
-        lessonData.parts.forEach(part => renderPart(uniqueLessonId, part));
+    if (lessonData?.parts && lessonData.parts.length > 0) {
+        lessonData.parts.forEach(p => renderPart(uniqueLessonId, p));
     }
 }
 
 function renderPart(uniqueLessonId, partData = null) {
-    partCounters[uniqueLessonId]++;
-    const partIndex = partCounters[uniqueLessonId];
-    const partElementId = `part_${uniqueLessonId}_${partIndex}`;
-
-    const pId = partData?.id || '';
-    const pTitle = partData?.title || '';
-    const pContent = partData?.lesson_content || '';
-    const pExample = partData?.example || '';
-    const pQuestion = partData?.question || '';
+    partCounters[uniqueLessonId] = (partCounters[uniqueLessonId] || 0) + 1;
+    const pIndex = partCounters[uniqueLessonId];
+    const pElementId = `part_${uniqueLessonId}_${pIndex}`;
 
     const partHTML = `
-        <div class="part-box p-3 mb-2 bg-white rounded border border-secondary" id="${partElementId}" data-id="${pId}">
+        <div class="part-box p-3 mb-2 bg-white rounded border border-secondary" id="${pElementId}" data-id="${partData?.id || ''}">
             <div class="d-flex justify-content-end mb-2">
-                <button class="btn btn-sm text-danger fw-bold action-btn-dynamic" onclick="removeBlock('${partElementId}')">✖ حذف الجزء</button>
+                <button type="button" class="btn btn-sm text-danger fw-bold action-btn-dynamic" onclick="removeBlock('${pElementId}')">✖ حذف الجزء</button>
             </div>
             <div class="row align-items-stretch">
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label class="form-label fw-bold">اسم الجزء</label>
-                        <input type="text" class="form-control part-title" placeholder="اسم الفقرة..." value="${pTitle}">
+                        <input type="text" class="form-control part-title" placeholder="اسم الجزء..." value="${partData?.title || ''}">
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-success">أمثلة</label>
-                        <textarea class="form-control part-example" rows="2" placeholder="أمثلة...">${pExample}</textarea>
+                        <textarea class="form-control part-example" rows="2" placeholder="اكتب الأمثلة هنا...">${partData?.example || ''}</textarea>
                     </div>
                     <div>
                         <label class="form-label fw-bold text-danger">أسئلة</label>
-                        <textarea class="form-control part-question" rows="2" placeholder="أسئلة...">${pQuestion}</textarea>
+                        <textarea class="form-control part-question" rows="2" placeholder="اكتب الأسئلة هنا...">${partData?.question || ''}</textarea>
                     </div>
                 </div>
                 <div class="col-md-6 d-flex flex-column mb-3">
                     <label class="form-label fw-bold text-primary">الشرح</label>
-                    <textarea class="form-control explanation-area part-lesson-content flex-grow-1" placeholder="الشرح التفصيلي...">${pContent}</textarea>
+                    <textarea class="form-control explanation-area part-lesson-content flex-grow-1" placeholder="اكتب الشرح التفصيلي هنا...">${partData?.lesson_content || ''}</textarea>
                 </div>
             </div>
         </div>
@@ -228,32 +208,28 @@ function renderPart(uniqueLessonId, partData = null) {
     document.getElementById(`partsContainer_${uniqueLessonId}`).insertAdjacentHTML('beforeend', partHTML);
 }
 
-// بناء مكونات الامتحانات
 function renderExam(unitId, examData = null) {
-    examCounters[unitId]++;
-    const examIndex = examCounters[unitId];
-    const uniqueExamId = `${unitId}_${examIndex}`;
+    examCounters[unitId] = (examCounters[unitId] || 0) + 1;
+    const eIndex = examCounters[unitId];
+    const uniqueExamId = `${unitId}_${eIndex}`;
     questionCounters[uniqueExamId] = 0;
 
-    const eId = examData?.id || '';
-    const eTitle = examData?.title || '';
-
     const examHTML = `
-        <div class="exam-box shadow-sm p-3 mb-3 bg-white rounded border" id="exam_${uniqueExamId}" data-id="${eId}">
+        <div class="exam-box shadow-sm p-3 mb-3 bg-white rounded border" id="exam_${uniqueExamId}" data-id="${examData?.id || ''}">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="d-flex align-items-end w-100 me-3">
-                    <button class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('examContent_${uniqueExamId}', 'arrowExam_${uniqueExamId}')" id="arrowExam_${uniqueExamId}">▼</button>
+                    <button type="button" class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('examContent_${uniqueExamId}', 'arrowExam_${uniqueExamId}')" id="arrowExam_${uniqueExamId}">▼</button>
                     <div class="w-100">
-                        <label class="form-label fw-bold text-exam" style="color: var(--color-exam);">عنوان الامتحان المقالي</label>
-                        <input type="text" class="form-control exam-title border-secondary" placeholder="مثال: امتحان مقالي على قوانين كيرشوف" value="${eTitle}">
+                        <label class="form-label fw-bold text-purple">عنوان الامتحان المقالي</label>
+                        <input type="text" class="form-control exam-title border-purple" placeholder="عنوان الامتحان..." value="${examData?.title || ''}">
                     </div>
                 </div>
-                <button class="btn btn-outline-danger btn-sm mt-4 action-btn-dynamic" onclick="removeBlock('exam_${uniqueExamId}')">حذف الامتحان</button>
+                <button type="button" class="btn btn-outline-danger btn-sm mt-4 action-btn-dynamic" onclick="removeBlock('exam_${uniqueExamId}')">حذف الامتحان</button>
             </div>
             <div id="examContent_${uniqueExamId}">
                 <div id="questionsContainer_${uniqueExamId}"></div>
-                <button class="btn btn-sm btn-exam w-100 mt-2 py-2 fw-bold action-btn-dynamic" onclick="addExamQuestion('${uniqueExamId}')">
-                    + إضافة سؤال مقالي ونموذج تصحيح
+                <button type="button" class="btn btn-outline-purple w-100 mt-2 fw-bold action-btn-dynamic" onclick="addExamQuestion('${uniqueExamId}')">
+                    + إضافة سؤال جديد للامتحان
                 </button>
             </div>
         </div>
@@ -261,45 +237,40 @@ function renderExam(unitId, examData = null) {
 
     document.getElementById(`examsContainer_${unitId}`).insertAdjacentHTML('beforeend', examHTML);
 
-    if (examData?.questions?.length > 0) {
+    if (examData?.questions && examData.questions.length > 0) {
         examData.questions.forEach(q => renderExamQuestion(uniqueExamId, q));
     }
 }
 
 function renderExamQuestion(uniqueExamId, qData = null) {
-    questionCounters[uniqueExamId]++;
+    questionCounters[uniqueExamId] = (questionCounters[uniqueExamId] || 0) + 1;
     const qIndex = questionCounters[uniqueExamId];
     const qElementId = `question_${uniqueExamId}_${qIndex}`;
 
-    const qId = qData?.id || '';
-    const qTitle = qData?.title || '';
-    const qText = qData?.question_text || '';
-    const qAnswer = qData?.model_answer || '';
-    const qScore = qData?.max_score || 1;
-
     const questionHTML = `
-        <div class="exam-question-box p-3 mb-3 bg-white rounded border" id="${qElementId}" data-id="${qId}">
-            <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                <span class="fw-bold" style="color: var(--color-exam);">سؤال مقالي ونموذج الإجابة المعتمد</span>
-                <button class="btn btn-sm text-danger fw-bold action-btn-dynamic" onclick="removeBlock('${qElementId}')">✖ حذف السؤال</button>
+        <div class="exam-question-box p-3 mb-2 bg-white rounded border border-secondary" id="${qElementId}" data-id="${qData?.id || ''}">
+            <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-sm text-danger fw-bold action-btn-dynamic" onclick="removeBlock('${qElementId}')">✖ حذف السؤال</button>
             </div>
-            <div class="row g-2 mb-2">
-                <div class="col-md-9">
-                    <label class="form-label small fw-bold">عنوان أو رقم السؤال</label>
-                    <input type="text" class="form-control q-title" placeholder="مثال: علل لما يأتي..." value="${qTitle}">
+            <div class="row align-items-stretch">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-purple">عنوان أو رقم السؤال</label>
+                        <input type="text" class="form-control q-title" placeholder="مثال: السؤال الأول..." value="${qData?.title || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">الدرجة القصوى</label>
+                        <input type="number" class="form-control q-max-score" min="1" value="${qData?.max_score || 1}">
+                    </div>
+                    <div>
+                        <label class="form-label fw-bold text-dark">نص السؤال المقالي</label>
+                        <textarea class="form-control q-text" rows="3" placeholder="اكتب نص السؤال المقالي...">${qData?.question_text || ''}</textarea>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label small fw-bold">الدرجة القصوى</label>
-                    <input type="number" class="form-control q-max-score" min="1" value="${qScore}">
+                <div class="col-md-6 d-flex flex-column mb-3">
+                    <label class="form-label fw-bold text-success">نقاط الإجابة النموذجية (مرجع تصحيح الذكاء الاصطناعي)</label>
+                    <textarea class="form-control model-answer-area q-model-answer flex-grow-1" placeholder="اكتب هنا عناصر الإجابة النموذجية والمصطلحات الأساسية...">${qData?.model_answer || ''}</textarea>
                 </div>
-            </div>
-            <div class="mb-2">
-                <label class="form-label small fw-bold text-dark">نص السؤال المقالي:</label>
-                <textarea class="form-control q-text" rows="2" placeholder="اكتب السؤال المقالي كاملاً كما يظهر للطالب...">${qText}</textarea>
-            </div>
-            <div>
-                <label class="form-label small fw-bold text-success">نموذج الإجابة المعتمد (دليل التصحيح لـ Gemini):</label>
-                <textarea class="form-control model-answer-area q-model-answer" rows="3" placeholder="اكتب هنا الإجابة النموذجية والمصطلحات الأساسية اللازمة لمنح الدرجة...">${qAnswer}</textarea>
             </div>
         </div>
     `;
@@ -307,7 +278,7 @@ function renderExamQuestion(uniqueExamId, qData = null) {
     document.getElementById(`questionsContainer_${uniqueExamId}`).insertAdjacentHTML('beforeend', questionHTML);
 }
 
-// دوال مساعدة للإضافة اليدوية أثناء وضع التعديل
+// أزرار الاستدعاء عند الضغط
 function addLesson(unitId) {
     renderLesson(unitId);
     renderPart(`${unitId}_${lessonCounters[unitId]}`);
@@ -327,7 +298,7 @@ function addExamQuestion(uniqueExamId) {
 }
 
 // ==========================================
-// 4. التحكم في وضع التعديل والعرض
+// 4. التحكم في وضع التعديل والمعاينة
 // ==========================================
 const editBtn = document.getElementById('editBtn');
 const saveBtn = document.getElementById('saveBtn');
@@ -356,7 +327,7 @@ function togglePageMode(editMode) {
     });
 
     document.querySelectorAll('.action-btn-dynamic').forEach(btn => {
-        btn.style.display = isEditMode ? 'inline-block' : 'none';
+        btn.style.display = isEditMode ? '' : 'none';
     });
 }
 
@@ -370,7 +341,6 @@ if (addUnitBtn) {
     });
 }
 
-// رفع صورة الموديل
 if (imageUploadTrigger) {
     imageUploadTrigger.addEventListener('click', () => {
         if (isEditMode && modelImageInput) modelImageInput.click();
@@ -419,7 +389,7 @@ function removeBlock(elementId) {
 }
 
 // ==========================================
-// 5. تجميع البيانات وحفظها (Bulk Upload)
+// 5. استخراج البيانات وحفظها بالسيرفر
 // ==========================================
 if (document.getElementById('exportJsonBtn')) {
     document.getElementById('exportJsonBtn').addEventListener('click', async () => {
@@ -489,7 +459,7 @@ if (document.getElementById('exportJsonBtn')) {
                 unitData.lessons.push(lessonData);
             });
 
-            // تجميع الامتحانات ونماذج الإجابة
+            // تجميع الامتحانات والأسئلة المقالية
             unitBlock.querySelectorAll('.exam-box').forEach(examBlock => {
                 const examTitle = examBlock.querySelector('.exam-title').value.trim();
                 if (!examTitle) return;
@@ -537,7 +507,7 @@ if (document.getElementById('exportJsonBtn')) {
             if (response.ok) {
                 const resData = await response.json();
                 if (resData.bank_id) currentKnowledgeBankId = resData.bank_id;
-                alert("تم حفظ المنهج ونماذج الإجابة بنجاح!");
+                alert("تم حفظ وتحديث المنهج والامتحانات بنجاح!");
                 window.location.reload();
             } else {
                 const err = await response.json();

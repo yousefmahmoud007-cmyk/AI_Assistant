@@ -4,71 +4,201 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>INPUT DATA - AI Platform</title>
-    <!-- استدعاء Bootstrap 5 لدعم الـ Grid System والـ RTL -->
+    <!-- استدعاء Bootstrap 5 لدعم Grid System والـ RTL -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
-    <!-- استدعاء ملف الـ CSS الخارجي -->
     <link rel="stylesheet" href="style_input_data.css">
 </head>
 <body>
     <h1 class="text-center mt-4 fw-bold">AI ASSISTANT - لوحة الإدارة</h1>
-    
+
     <div class="container my-5">
-        <!-- شريط أدوات الصفحة (تعديل / حفظ) -->
+        <!-- شريط أدوات الصفحة (تعديل / معاينة) -->
         <div class="d-flex justify-content-end mb-4 gap-2 border-bottom pb-3">
-            <button class="btn btn-warning fw-bold px-4 fs-5 shadow-sm" id="editBtn">
+            <button type="button" class="btn btn-warning fw-bold px-4 fs-5 shadow-sm" id="editBtn">
                 ✏️ تعديل البيانات
             </button>
-            <button class="btn btn-success fw-bold px-4 fs-5 shadow-sm d-none" id="saveBtn">
-                💾 وضع العرض (معاينة)
+            <button type="button" class="btn btn-success fw-bold px-4 fs-5 shadow-sm d-none" id="saveBtn">
+                💾 وضع المعاينة
             </button>
         </div>
 
-        <!-- الجزء الأول: إعدادات الموديل الذكي -->
+        <!-- إعدادات الموديل الذكي -->
         <div class="model-settings-box mb-5 p-4 shadow-sm bg-white rounded border">
             <h4 class="text-secondary mb-4 border-bottom pb-2">إعدادات الموديل الذكي (AI Personality)</h4>
             <div class="row align-items-start">
                 <div class="col-md-8">
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark">اسم الموديل</label>
-                        <input type="text" id="modelName" class="form-control editable-field" placeholder="اكتب اسم الموديل هنا..." disabled>
+                        <input type="text" id="modelName" class="form-control" placeholder="اكتب اسم الموديل هنا..." disabled>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark">شخصية الموديل والتعليمات</label>
-                        <textarea id="modelPersonality" class="form-control editable-field" rows="4" placeholder="اكتب وصفاً لشخصية وطريقة تحدث الموديل..." disabled></textarea>
+                        <textarea id="modelPersonality" class="form-control" rows="4" placeholder="اكتب وصفاً لشخصية وطريقة تحدث الموديل..." disabled></textarea>
                     </div>
                 </div>
-                
+
                 <div class="col-md-4 text-center">
                     <label class="form-label fw-bold text-dark d-block">صورة الموديل</label>
                     <div class="image-preview-container mx-auto border rounded d-flex justify-content-center align-items-center" style="width: 150px; height: 150px; background-color: #f8f9fa; cursor: pointer; overflow: hidden; position: relative;" id="imageUploadTrigger">
                         <span class="text-muted fs-1" id="cameraIcon">📸</span>
                         <img id="modelImagePreview" src="" alt="صورة الموديل" style="display: none; width: 100%; height: 100%; object-fit: cover;">
                     </div>
-                    <input type="file" id="modelImageInput" class="d-none editable-field" accept="image/*" disabled>
+                    <input type="file" id="modelImageInput" class="d-none" accept="image/*" disabled>
                     <small class="text-danger fw-bold d-block mt-3 px-2">
-                        💡 ملاحظة هامة: هذه الصورة ستُعرض للطلاب كصورة المعلم الذكي.
+                        💡 ملاحظة هامة: هذه الصورة ستُعرض للطلاب كأيقونة المساعد الذكي.
                     </small>
                 </div>
             </div>
         </div>
 
-        <!-- الجزء الثاني: المادة العلمية -->
+        <!-- المنهج والمادة العلمية -->
         <div class="subject-box mb-4 p-4 shadow-sm bg-white rounded border">
             <h4 class="text-secondary mb-4 border-bottom pb-2">المنهج والمادة العلمية</h4>
             <label class="form-label fw-bold fs-5 text-primary">اسم المادة التعليمية</label>
-            <input type="text" id="subjectName" class="form-control form-control-lg editable-field" placeholder="مثال: فيزياء 3 ثانوي..." disabled>
+            <input type="text" id="subjectName" class="form-control form-control-lg" placeholder="مثال: فيزياء 3 ثانوي..." disabled>
         </div>
 
-        <!-- الحاوية الديناميكية للوحدات والامتحانات -->
-        <div id="unitsContainer"></div>
+        <!-- حاوية الوحدات -->
+        <div id="unitsContainer">
+            <!-- وحدة 1 مبنية بشكل افتراضي داخل الـ HTML -->
+            <div class="unit-box shadow-sm p-3 mb-4 bg-white rounded" id="unit_1" data-id="">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex align-items-end w-100 me-3">
+                        <button type="button" class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('unitContent_1', 'arrowUnit_1')" id="arrowUnit_1">▼</button>
+                        <div class="w-100">
+                            <label class="form-label fw-bold fs-5 text-dark">اسم الباب / الوحدة</label>
+                            <input type="text" class="form-control unit-title border-dark" placeholder="اسم الباب..." disabled>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-danger mt-4 action-btn-dynamic" onclick="removeBlock('unit_1')">حذف الباب</button>
+                </div>
 
-        <!-- أزرار الإجراءات الرئيسية -->
-        <button class="btn btn-dark w-100 mt-4 py-3 fs-5 fw-bold action-btn-dynamic" id="addUnitBtn" style="display: none;">
+                <div id="unitContent_1">
+                    <!-- 1. حاوية الدروس -->
+                    <div id="lessonsContainer_1">
+                        <div class="lesson-box shadow-sm p-3 mb-3 bg-light rounded border" id="lesson_1_1" data-id="">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-end w-100 me-3">
+                                    <button type="button" class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('lessonContent_1_1', 'arrowLesson_1_1')" id="arrowLesson_1_1">▼</button>
+                                    <div class="w-100">
+                                        <label class="form-label fw-bold text-primary">اسم الدرس</label>
+                                        <input type="text" class="form-control lesson-title border-primary" placeholder="اسم الدرس..." disabled>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-danger btn-sm mt-4 action-btn-dynamic" onclick="removeBlock('lesson_1_1')">حذف الدرس</button>
+                            </div>
+                            <div id="lessonContent_1_1">
+                                <div id="partsContainer_1_1">
+                                    <!-- جزء داخل الدرس -->
+                                    <div class="part-box p-3 mb-2 bg-white rounded border border-secondary" id="part_1_1_1" data-id="">
+                                        <div class="d-flex justify-content-end mb-2">
+                                            <button type="button" class="btn btn-sm text-danger fw-bold action-btn-dynamic" onclick="removeBlock('part_1_1_1')">✖ حذف الجزء</button>
+                                        </div>
+                                        <div class="row align-items-stretch">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">اسم الجزء</label>
+                                                    <input type="text" class="form-control part-title" placeholder="اسم الجزء..." disabled>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold text-success">أمثلة</label>
+                                                    <textarea class="form-control part-example" rows="2" placeholder="اكتب الأمثلة هنا..." disabled></textarea>
+                                                </div>
+                                                <div>
+                                                    <label class="form-label fw-bold text-danger">أسئلة</label>
+                                                    <textarea class="form-control part-question" rows="2" placeholder="اكتب الأسئلة هنا..." disabled></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 d-flex flex-column mb-3">
+                                                <label class="form-label fw-bold text-primary">الشرح</label>
+                                                <textarea class="form-control explanation-area part-lesson-content flex-grow-1" placeholder="اكتب الشرح التفصيلي هنا..." disabled></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-secondary w-100 mt-2 fw-bold action-btn-dynamic" onclick="addPart('1_1')">
+                                    + إضافة جزء جديد
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. حاوية الامتحانات ونماذج الإجابة (القسم الجديد المضاف في HTML) -->
+                    <div id="examsContainer_1">
+                        <div class="exam-box shadow-sm p-3 mb-3 bg-white rounded border" id="exam_1_1" data-id="">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-end w-100 me-3">
+                                    <button type="button" class="btn btn-sm btn-light toggle-arrow ms-3 mb-2" onclick="toggleContent('examContent_1_1', 'arrowExam_1_1')" id="arrowExam_1_1">▼</button>
+                                    <div class="w-100">
+                                        <label class="form-label fw-bold text-purple">عنوان الامتحان المقالي</label>
+                                        <input type="text" class="form-control exam-title border-purple" placeholder="مثال: امتحان مقالي على الباب الأول..." disabled>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-danger btn-sm mt-4 action-btn-dynamic" onclick="removeBlock('exam_1_1')">حذف الامتحان</button>
+                            </div>
+                            <div id="examContent_1_1">
+                                <div id="questionsContainer_1_1">
+                                    <!-- السؤال ونموذج إجابته بجواره مباشرة -->
+                                    <div class="exam-question-box p-3 mb-2 bg-white rounded border border-secondary" id="question_1_1_1" data-id="">
+                                        <div class="d-flex justify-content-end mb-2">
+                                            <button type="button" class="btn btn-sm text-danger fw-bold action-btn-dynamic" onclick="removeBlock('question_1_1_1')">✖ حذف السؤال</button>
+                                        </div>
+                                        <div class="row align-items-stretch">
+                                            <!-- اليمين: السؤال ودرجته -->
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold text-purple">عنوان أو رقم السؤال</label>
+                                                    <input type="text" class="form-control q-title" placeholder="مثال: السؤال الأول (علل)..." disabled>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold text-dark">الدرجة القصوى</label>
+                                                    <input type="number" class="form-control q-max-score" min="1" value="1" disabled>
+                                                </div>
+                                                <div>
+                                                    <label class="form-label fw-bold text-dark">نص السؤال المقالي</label>
+                                                    <textarea class="form-control q-text" rows="3" placeholder="اكتب نص السؤال المقالي كاملاً هنا..." disabled></textarea>
+                                                </div>
+                                            </div>
+                                            <!-- اليسار: نقاط الإجابة النموذجية المعتمدة للتصحيح -->
+                                            <div class="col-md-6 d-flex flex-column mb-3">
+                                                <label class="form-label fw-bold text-success">نقاط الإجابة النموذجية (مرجع تصحيح الذكاء الاصطناعي)</label>
+                                                <textarea class="form-control model-answer-area q-model-answer flex-grow-1" placeholder="اكتب عناصر الإجابة النموذجية والمصطلحات الأساسية لاحتساب الدرجة كاملة..." disabled></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-purple w-100 mt-2 fw-bold action-btn-dynamic" onclick="addExamQuestion('1_1')">
+                                    + إضافة سؤال جديد للامتحان
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- زران متجاوران: إضافة درس + إضافة امتحان ونموذج إجابة -->
+                    <div class="row g-2 mt-3 action-btn-dynamic">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-primary w-100 py-2 fw-bold" onclick="addLesson(1)">
+                                + إضافة درس لهذه الوحدة
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-purple w-100 py-2 fw-bold" onclick="addExam(1)">
+                                + إضافة امتحان ونموذج إجابة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- زر إضافة باب / وحدة جديدة -->
+        <button type="button" class="btn btn-dark w-100 mt-4 py-3 fs-5 fw-bold action-btn-dynamic" id="addUnitBtn" style="display: none;">
             + إضافة باب / وحدة جديدة
         </button>
 
-        <button class="btn btn-primary w-100 mt-4 py-3 fw-bold fs-5 shadow" id="exportJsonBtn">
-            📤 حفظ وإرسال المنهج بالكامل للسيرفر
+        <!-- زر الحفظ النهائي وإرسال الـ JSON -->
+        <button type="button" class="btn btn-outline-primary w-100 mt-5 py-3 fw-bold fs-5 shadow-sm" id="exportJsonBtn">
+            📤 ارسال
         </button>
     </div>
 
