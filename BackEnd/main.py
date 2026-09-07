@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 # استدعاء المسارات (Routers) من مجلد routers
 from routers.admin import admin_router
 from routers.ai import ai_router
-from routers.prompts import prompts_router
 
 # 1. تحميل متغيرات البيئة
 load_dotenv()
@@ -32,7 +31,7 @@ app.add_middleware(
 # 4. دمج الـ Routers
 app.include_router(admin_router)
 app.include_router(ai_router)
-app.include_router(prompts_router)
+
 
 # 5. مسار اختبار السيرفر
 @app.get("/")
