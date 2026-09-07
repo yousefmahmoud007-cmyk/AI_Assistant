@@ -5,7 +5,7 @@ import base64
 import asyncio
 from typing import Optional
 
-from prompts import build_grading_prompt
+from routers.prompts import build_grading_prompt
 import google.generativeai as genai
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
