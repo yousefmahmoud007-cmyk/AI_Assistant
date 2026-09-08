@@ -363,7 +363,6 @@ async def get_exam_question(question_id: int, session: AsyncSession = Depends(ge
         print(f"Database Error: {e}")
         raise HTTPException(status_code=500, detail="حدث خطأ أثناء جلب بيانات السؤال")
 
-
 @ai_router.post("/quiz-answer")
 async def grade_student_answer(
     request: StudentAnswerSchema, 
@@ -400,8 +399,7 @@ async def grade_student_answer(
 
         # 4. تجهيز الـ Prompt للذكاء الاصطناعي
         from routers.prompts import build_grading_prompt
-        
-        # تجهيز نص الإجابة الذي سيظهر في الـ Prompt
+
         text_for_prompt = request.student_answer.strip() if has_text else "قام الطالب برفع صورة لإجابته الورقية بخط يده المرفقة مع الطلب."
         if has_text and has_image:
             text_for_prompt += " (ملاحظة: أرفق الطالب أيضاً صورة ورقية مكملة لإجابته)."
@@ -413,7 +411,6 @@ async def grade_student_answer(
             max_score=question_record.max_score
         )
 
-        # إضافة تنبيه للـ AI لقراءة خط اليد من الصورة
         if has_image:
             prompt += "\n\nتنبيه هام جداً للمصحح: مرفق مع السؤال صورة لورقة إجابة الطالب بخط يده. قم بقراءة خط اليد باللغة العربية بدقة ومطابقته مع نموذج الإجابة لاحتساب الدرجة."
 
@@ -458,10 +455,11 @@ async def grade_student_answer(
         raw_score = grading_result.get("score", 0)
         final_ai_score = int(round(float(raw_score)))
 
-        # 8. تحديد النص المحفوظ في قاعدة البيانات (لتفادي مشكلة nullable=False)
-        saved_student_answer = request.student_answer.strip() if has_text else "[إجابة ورقية مصورة عبر الكاميرا]"
-        if has_text and has_image:
-            saved_student_answer += " [مرفق معها صورة]"
+        # 8. حفظ كود الصورة Base64 مباشرة في قاعدة البيانات لتظهر للمعلم في الداشبورد
+        if has_image:
+            saved_student_answer = request.image.strip()
+        else:
+            saved_student_answer = request.student_answer.strip()
 
         # 9. حفظ الدرجة في قاعدة البيانات
         new_grade = StudentGrade(
@@ -486,6 +484,7 @@ async def grade_student_answer(
         await session.rollback()
         print(f"Database/Server Error: {e}")
         return {"status": "error", "message": f"حدث خطأ غير متوقع: {str(e)}"}
+
 
 @ai_router.get("/admin/exam-results/{exam_id}")
 async def get_exam_results(exam_id: int, session: AsyncSession = Depends(get_session)):
