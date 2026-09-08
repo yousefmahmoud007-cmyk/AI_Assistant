@@ -72,9 +72,10 @@ class StudentLoginRequest(BaseModel):
 
 
 class StudentAnswerSchema(BaseModel):
-    kb_id: int              # كود السؤال من جدول ExamQuestion
-    student_id: str         # كود الطالب
-    student_answer: str     # إجابة الطالب
+    kb_id: int 
+    student_id: str 
+    student_answer: Optional[str] = "" # أصبح اختياري لو الطالب رفع صورة فقط
+    image: Optional[str] = None       # [جديد] استقبال الصورة بصيغة Base64
     knowledge_bank_id: Optional[int] = None
 
 
@@ -365,11 +366,18 @@ async def get_exam_question(question_id: int, session: AsyncSession = Depends(ge
 
 @ai_router.post("/quiz-answer")
 async def grade_student_answer(
-    request: StudentAnswerSchema,
+    request: StudentAnswerSchema, 
     session: AsyncSession = Depends(get_session)
 ):
     try:
-        # 1. الاستعلام من جدول الأسئلة الخاص بالامتحانات
+        # 1. التحقق من وجود إجابة (نصية أو صورة)
+        has_text = bool(request.student_answer and request.student_answer.strip())
+        has_image = bool(request.image and request.image.strip())
+
+        if not has_text and not has_image:
+            return {"status": "error", "message": "يرجى كتابة إجابة أو التقاط صورة لورقة الحل قبل التسليم."}
+
+        # 2. الاستعلام من جدول الأسئلة الخاص بالامتحانات
         stmt_q = select(ExamQuestion).where(ExamQuestion.id == request.kb_id)
         res_q = await session.execute(stmt_q)
         question_record = res_q.scalar_one_or_none()
@@ -377,10 +385,9 @@ async def grade_student_answer(
         if not question_record:
             return {"status": "error", "message": "السؤال غير موجود"}
 
-        # 2. الاستعلام المرن عن الطالب لتجنب مشاكل المسافات وتجاوز حدود Integer
+        # 3. الاستعلام المرن عن الطالب لتجنب مشاكل المسافات وتجاوز حدود Integer
         clean_student_id = str(request.student_id).strip()
         search_conditions = [func.trim(Student.student_id) == clean_student_id]
-
         if clean_student_id.isdigit() and len(clean_student_id) <= 8:
             search_conditions.append(Student.id == int(clean_student_id))
 
@@ -391,45 +398,87 @@ async def grade_student_answer(
         if not student_record:
             return {"status": "error", "message": "بيانات الطالب غير صحيحة"}
 
-        # 3. تجهيز الـ Prompt للذكاء الاصطناعي
+        # 4. تجهيز الـ Prompt للذكاء الاصطناعي
         from routers.prompts import build_grading_prompt
+        
+        # تجهيز نص الإجابة الذي سيظهر في الـ Prompt
+        text_for_prompt = request.student_answer.strip() if has_text else "قام الطالب برفع صورة لإجابته الورقية بخط يده المرفقة مع الطلب."
+        if has_text and has_image:
+            text_for_prompt += " (ملاحظة: أرفق الطالب أيضاً صورة ورقية مكملة لإجابته)."
+
         prompt = build_grading_prompt(
             question_text=question_record.question_text,
             model_answer=question_record.model_answer,
-            student_answer=request.student_answer,
+            student_answer=text_for_prompt,
             max_score=question_record.max_score
         )
 
-        # 4. إرسال الطلب مع إلزام الموديل بالرد بصيغة JSON نظيفة
-        model = genai.GenerativeModel('gemini-3.7-flash')
-        response = await model.generate_content_async(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        ai_response = response.text
+        # إضافة تنبيه للـ AI لقراءة خط اليد من الصورة
+        if has_image:
+            prompt += "\n\nتنبيه هام جداً للمصحح: مرفق مع السؤال صورة لورقة إجابة الطالب بخط يده. قم بقراءة خط اليد باللغة العربية بدقة ومطابقته مع نموذج الإجابة لاحتساب الدرجة."
 
-        # 5. تحليل استجابة الـ JSON
+        contents = [prompt]
+
+        # 5. معالجة الصورة وتحويلها من Base64 إن وُجدت
+        if has_image:
+            image_data_str = request.image.split(",")[1] if "," in request.image else request.image
+            image_bytes = base64.b64decode(image_data_str)
+            mime_type = "image/jpeg" if ("jpeg" in request.image or "jpg" in request.image) else "image/png"
+            contents.append({
+                "mime_type": mime_type,
+                "data": image_bytes
+            })
+
+        # 6. إرسال الطلب عبر قائمة الموديلات البديلة لضمان الاستقرار وإلزامها بـ JSON
+        models_to_try = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']
+        ai_response = None
+
+        for model_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = await asyncio.wait_for(
+                    model.generate_content_async(
+                        contents,
+                        generation_config={"response_mime_type": "application/json"}
+                    ),
+                    timeout=45.0
+                )
+                ai_response = response.text
+                break
+            except Exception as e:
+                print(f"فشل الموديل {model_name} في التصحيح: {e}")
+                continue
+
+        if not ai_response:
+            return {"status": "error", "message": "معلش يا بطل، فيه ضغط على سيرفر التصحيح حالياً. جرب تسلم تاني كمان دقيقة."}
+
+        # 7. تحليل استجابة الـ JSON
         cleaned_response = ai_response.replace("```json", "").replace("```", "").strip()
         grading_result = json.loads(cleaned_response)
-
         raw_score = grading_result.get("score", 0)
         final_ai_score = int(round(float(raw_score)))
 
-        # 6. حفظ الدرجة في قاعدة البيانات
+        # 8. تحديد النص المحفوظ في قاعدة البيانات (لتفادي مشكلة nullable=False)
+        saved_student_answer = request.student_answer.strip() if has_text else "[إجابة ورقية مصورة عبر الكاميرا]"
+        if has_text and has_image:
+            saved_student_answer += " [مرفق معها صورة]"
+
+        # 9. حفظ الدرجة في قاعدة البيانات
         new_grade = StudentGrade(
             student_id=student_record.id,
             exam_question_id=question_record.id,
-            student_answer=request.student_answer,
+            student_answer=saved_student_answer,
             ai_score=final_ai_score,
             ai_feedback=grading_result.get("feedback", "")
         )
         session.add(new_grade)
         await session.commit()
 
-        # 7. إرسال النتيجة للفرونت إند
+        # 10. إرسال النتيجة للفرونت إند
         return {
             "status": "success",
             "score": final_ai_score,
+            "max_score": question_record.max_score,
             "feedback": grading_result.get("feedback", "")
         }
 
@@ -437,7 +486,6 @@ async def grade_student_answer(
         await session.rollback()
         print(f"Database/Server Error: {e}")
         return {"status": "error", "message": f"حدث خطأ غير متوقع: {str(e)}"}
-
 
 @ai_router.get("/admin/exam-results/{exam_id}")
 async def get_exam_results(exam_id: int, session: AsyncSession = Depends(get_session)):

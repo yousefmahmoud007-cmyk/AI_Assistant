@@ -39,6 +39,35 @@ async function fetchQuestion() {
 // ==========================================
 // 2. إرسال الإجابة للتصحيح عبر الذكاء الاصطناعي
 // ==========================================
+// ==========================================
+// متغيرات معالجة الصور
+// ==========================================
+let studentImageBase64 = null;
+
+// معاينة الصورة وحفظها بصيغة Base64
+function handleImageSelected(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            studentImageBase64 = e.target.result; // حفظ الصورة
+            document.getElementById('imagePreview').src = studentImageBase64;
+            document.getElementById('imagePreviewContainer').style.display = 'flex';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// حذف الصورة المختارة وتفريغ الحقل
+function removeImage() {
+    studentImageBase64 = null;
+    document.getElementById('imageInput').value = "";
+    document.getElementById('imagePreviewContainer').style.display = 'none';
+}
+
+// ==========================================
+// دالة إرسال الإجابة والتصحيح بالذكاء الاصطناعي
+// ==========================================
 async function submitAnswer() {
     const answerText = document.getElementById('studentAnswer').value;
     const btn = document.getElementById('submitBtn');
@@ -46,11 +75,13 @@ async function submitAnswer() {
     const loader = document.getElementById('btnLoader');
     const resultContainer = document.getElementById('resultContainer');
 
-    if (answerText.trim() === '') {
-        alert('الرجاء كتابة إجابة قبل التسليم!');
+    // التحقق: يسمح بالتسليم لو كتب نص أو التقط صورة
+    if (answerText.trim() === '' && !studentImageBase64) {
+        alert('الرجاء كتابة إجابة أو التقاط صورة لورقة الحل قبل التسليم!');
         return;
     }
 
+    // تغيير حالة الزر لانتظار التصحيح
     btn.disabled = true;
     btnText.innerText = 'جاري تحليل الإجابة وتصحيحها عبر الذكاء الاصطناعي...';
     loader.style.display = 'block';
@@ -66,6 +97,7 @@ async function submitAnswer() {
                 kb_id: DUMMY_QUESTION_ID,
                 student_id: DUMMY_STUDENT_ID,
                 student_answer: answerText,
+                image: studentImageBase64, // إرسال الصورة للسيرفر
                 knowledge_bank_id: DUMMY_KNOWLEDGE_BANK_ID
             })
         });
@@ -74,9 +106,11 @@ async function submitAnswer() {
 
         if (response.ok && data.status === "success") {
             const scoreElem = document.getElementById('aiScore');
+            const maxScoreElem = document.getElementById('maxScore');
             const feedbackElem = document.getElementById('aiFeedback');
 
             if (scoreElem) scoreElem.innerText = data.score;
+            if (maxScoreElem && data.max_score) maxScoreElem.innerText = data.max_score;
             if (feedbackElem) feedbackElem.innerText = data.feedback;
 
             resultContainer.style.display = 'block';
