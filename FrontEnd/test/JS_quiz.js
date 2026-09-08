@@ -1,7 +1,7 @@
 // ==========================================
 // بيانات تجريبية ثابتة لاختبار الفكرة
 // ==========================================
-const DUMMY_KNOWLEDGE_BANK_ID = 5;        // كود المادة المعتمدة
+const DUMMY_KNOWLEDGE_BANK_ID = 4;        // كود المادة المعتمدة
 const DUMMY_QUESTION_ID = 1;              // رقم السؤال في جدول ExamQuestion
 const DUMMY_STUDENT_ID = "01234567890";   // كود/رقم هاتف الطالب المسجل
 const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app";
