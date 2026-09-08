@@ -1,9 +1,9 @@
 // ==========================================
 // بيانات تجريبية ثابتة لاختبار الفكرة
 // ==========================================
-const DUMMY_KNOWLEDGE_BANK_ID = 4;     // كود المادة المعتمدة
-const DUMMY_QUESTION_ID = 1;           // رقم السؤال في جدول ExamQuestion
-const DUMMY_STUDENT_ID = "01234567890"; // كود/رقم هاتف الطالب المسجل
+const DUMMY_KNOWLEDGE_BANK_ID = 4;        // كود المادة المعتمدة
+const DUMMY_QUESTION_ID = 1;              // رقم السؤال في جدول ExamQuestion
+const DUMMY_STUDENT_ID = "01234567890";   // كود/رقم هاتف الطالب المسجل
 const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app";
 
 // ==========================================
@@ -37,12 +37,15 @@ async function fetchQuestion() {
 }
 
 // ==========================================
-// 2. إرسال الإجابة للتصحيح عبر الذكاء الاصطناعي
-// ==========================================
-// ==========================================
-// متغيرات معالجة الصور
+// 2. وظائف الكاميرا ومعالجة الصورة
 // ==========================================
 let studentImageBase64 = null;
+
+// فتح الكاميرا أو نافذة اختيار الصور
+function openCamera() {
+    const input = document.getElementById('imageInput');
+    if (input) input.click();
+}
 
 // معاينة الصورة وحفظها بصيغة Base64
 function handleImageSelected(event) {
@@ -50,23 +53,31 @@ function handleImageSelected(event) {
     if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            studentImageBase64 = e.target.result; // حفظ الصورة
-            document.getElementById('imagePreview').src = studentImageBase64;
-            document.getElementById('imagePreviewContainer').style.display = 'flex';
+            studentImageBase64 = e.target.result; // حفظ الصورة في المتغير
+            
+            const preview = document.getElementById('imagePreview');
+            const container = document.getElementById('imagePreviewContainer');
+            if (preview) preview.src = studentImageBase64;
+            if (container) container.style.display = 'flex';
         };
         reader.readAsDataURL(file);
     }
 }
 
-// حذف الصورة المختارة وتفريغ الحقل
+// حذف الصورة وتفريغ الحقل بالكامل
 function removeImage() {
     studentImageBase64 = null;
-    document.getElementById('imageInput').value = "";
-    document.getElementById('imagePreviewContainer').style.display = 'none';
+    const input = document.getElementById('imageInput');
+    const preview = document.getElementById('imagePreview');
+    const container = document.getElementById('imagePreviewContainer');
+
+    if (input) input.value = "";
+    if (preview) preview.src = "";
+    if (container) container.style.display = 'none';
 }
 
 // ==========================================
-// دالة إرسال الإجابة والتصحيح بالذكاء الاصطناعي
+// 3. إرسال الإجابة للتصحيح عبر الذكاء الاصطناعي
 // ==========================================
 async function submitAnswer() {
     const answerText = document.getElementById('studentAnswer').value;
@@ -74,14 +85,18 @@ async function submitAnswer() {
     const btnText = document.getElementById('btnText');
     const loader = document.getElementById('btnLoader');
     const resultContainer = document.getElementById('resultContainer');
+    const imgPreview = document.getElementById('imagePreview');
 
-    // التحقق: يسمح بالتسليم لو كتب نص أو التقط صورة
-    if (answerText.trim() === '' && !studentImageBase64) {
+    // قراءة الصورة إما من المتغير أو مباشرة من وسم العرض لضمان عدم ضياعها
+    const currentImage = studentImageBase64 || (imgPreview && imgPreview.src.startsWith('data:image') ? imgPreview.src : null);
+
+    // التحقق: يسمح بالتسليم إذا توافر نص أو صورة
+    if (answerText.trim() === '' && !currentImage) {
         alert('الرجاء كتابة إجابة أو التقاط صورة لورقة الحل قبل التسليم!');
         return;
     }
 
-    // تغيير حالة الزر لانتظار التصحيح
+    // تغيير حالة الزر أثناء المعالجة
     btn.disabled = true;
     btnText.innerText = 'جاري تحليل الإجابة وتصحيحها عبر الذكاء الاصطناعي...';
     loader.style.display = 'block';
@@ -97,7 +112,7 @@ async function submitAnswer() {
                 kb_id: DUMMY_QUESTION_ID,
                 student_id: DUMMY_STUDENT_ID,
                 student_answer: answerText,
-                image: studentImageBase64, // إرسال الصورة للسيرفر
+                image: currentImage,
                 knowledge_bank_id: DUMMY_KNOWLEDGE_BANK_ID
             })
         });
@@ -125,33 +140,4 @@ async function submitAnswer() {
         btnText.innerText = 'إعادة الإرسال';
         loader.style.display = 'none';
     }
-}
-
-// ==========================================
-// 3. وظائف الكاميرا ورفع الصورة
-// ==========================================
-function openCamera() {
-    const input = document.getElementById('imageInput');
-    if (input) input.click();
-}
-
-function handleImageSelected(event) {
-    const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const preview = document.getElementById('imagePreview');
-            const container = document.getElementById('imagePreviewContainer');
-            if (preview) preview.src = e.target.result;
-            if (container) container.style.display = 'flex';
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-function removeImage() {
-    const input = document.getElementById('imageInput');
-    const container = document.getElementById('imagePreviewContainer');
-    if (input) input.value = "";
-    if (container) container.style.display = 'none';
 }
