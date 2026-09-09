@@ -1,0 +1,292 @@
+@import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap');
+
+:root {
+    --primary-color: #1eb1ff;
+    --primary-hover: #0694ff;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --bg-color: #f1f5f9;
+    --card-bg: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --radius: 12px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Almarai', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    direction: rtl;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+}
+
+/* حاوية الامتحان الأساسية */
+.exam-container {
+    background: var(--card-bg);
+    width: 100%;
+    max-width: 680px;
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    border: 1px solid var(--border-color);
+}
+
+/* الترويسة */
+.exam-header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 2px dashed var(--border-color);
+    padding-bottom: 16px;
+}
+
+.exam-header h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary-color);
+    margin-bottom: 6px;
+}
+
+.exam-header p {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* كارت السؤال */
+.question-card {
+    background-color: #f8fafc;
+    border-right: 4px solid var(--primary-color);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.question-card h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text-main);
+}
+
+.question-card p {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #334155;
+}
+
+/* قسم إجابة الطالب */
+.answer-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.answer-section label {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+textarea#studentAnswer {
+    width: 100%;
+    min-height: 140px;
+    padding: 14px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+textarea#studentAnswer:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(30, 177, 255, 0.15);
+}
+
+/* زر الكاميرا والمعاينة */
+.upload-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background-color: #f8fafc;
+    border: 1.5px dashed #94a3b8;
+    color: #475569;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.upload-btn:hover {
+    background-color: #f1f5f9;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+#imagePreviewContainer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+#imagePreview {
+    max-width: 100%;
+    max-height: 220px;
+    border-radius: 6px;
+    object-fit: contain;
+}
+
+#imagePreviewContainer button {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* زر الإرسال */
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    color: white;
+    border: none;
+    padding: 14px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    min-height: 52px; /* Touch target ممتاز للموبايل */
+}
+
+.action-btn:active {
+    transform: scale(0.98);
+}
+
+.action-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Loading Spinner */
+.loader {
+    width: 20px;
+    height: 20px;
+    border: 3px solid #ffffff;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* منطقة النتيجة والتقييم */
+.result-container {
+    margin-top: 24px;
+    animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.result-card {
+    background-color: #f0fdf4;
+    border: 1.5px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 18px;
+}
+
+.score-badge {
+    display: inline-block;
+    background-color: var(--success-color);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.ai-feedback h4 {
+    color: #166534;
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+}
+
+.ai-feedback p {
+    color: #15803d;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    white-space: pre-wrap;
+}
+
+/* ========================================== */
+/* شاشات الموبايل (أقل من 600px) */
+/* ========================================== */
+@media (max-width: 600px) {
+    body {
+        padding: 8px;
+    }
+
+    .exam-container {
+        padding: 16px;
+        border-radius: 10px;
+    }
+
+    .exam-header h2 {
+        font-size: 1.3rem;
+    }
+
+    .question-card {
+        padding: 12px;
+    }
+
+    .question-card p {
+        font-size: 0.95rem;
+    }
+
+    textarea#studentAnswer {
+        min-height: 120px;
+        font-size: 0.95rem;
+    }
+
+    .action-btn {
+        font-size: 1rem;
+    }
+}
