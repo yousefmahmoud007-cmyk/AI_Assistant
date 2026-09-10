@@ -1,4 +1,4 @@
-const DUMMY_EXAM_ID = 2;
+const DUMMY_EXAM_ID = 3;
 const API_BASE_URL = "https://aiassistant-production-214a.up.railway.app";
 
 let currentRecords = [];
